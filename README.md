@@ -19,20 +19,20 @@
 
 ## Problem & Solution
 
-I aim to identify the color of makeup from images to organize makeup by shade. Makeup products often have fanciful and inconsistent names, making it difficult for consumers to find the desired shade. These names can complicate organizing makeup by color. For example, the following makeup shades are all labeled as "mauve," even though they are clearly different shades. Some are not even mauve (as defined by Pantone) but brown.
+I aim to identify the color of makeup from images to organize lipsticks by shade. Makeup products in general have fanciful and inconsistent names, making it difficult for consumers to find the desired shade. These names can complicate organizing makeup by color. For example, the following makeup shades are all labeled as "mauve," even though they are clearly different shades. Some are not even mauve (as defined by Pantone) but brown.
 
 <div align="center">
 <img src="https://github.com/ConstanzaSchibber/capstone_colors/blob/5be3cc59ebc4906092fa95ccbdc54b890ca8827e/img/Screen%20Shot%202024-08-24%20at%208.52.52%20PM.png" width=50%>
 </div>
 
-Moreover, the color shade filters offered by makeup retailers are often limited. For example, below are the lipstick color options available at Sephora and Ulta, compared to the more comprehensive shade palette my app provides which allows users to filter by a lot more shades: 
+Moreover, the color shade filters offered by makeup retailers are often limited. Below are the lipstick color options available at Sephora and Ulta, compared to the more comprehensive shade palette my app provides which allows users to filter by a lot more shades: 
 
 <div align="center">
 <img src="https://github.com/ConstanzaSchibber/capstone_colors/blob/main/img/filters_retail.png" width=75%>
 </div>
 
 
-By leveraging the [CIELAB color space](https://en.wikipedia.org/wiki/CIELAB_color_space), which provides a standardized and perceptually uniform representation of color, I aim to identify makeup colors from images, and organize them by shade. It's designed to be perceptually uniform, meaning that the numerical differences between colors correspond to perceived differences to the human eye.
+By leveraging the [CIELAB color space](https://en.wikipedia.org/wiki/CIELAB_color_space), which provides a standardized and perceptually uniform representation of color, I aim to identify lipsticks from images, and organize them by shade. 
 
 CIELAB is a color space defined by the International Commission on Illumination (CIE) where colors are represented in three dimensions: 
 
@@ -42,15 +42,17 @@ CIELAB is a color space defined by the International Commission on Illumination 
 
 CIELAB offers a standardized method for describing colors, enabling accurate color comparison and matching across various brands and products. This standardization eliminates the confusion caused by subjective or creative color names, making it easier for consumers to find their desired shades. This is especially important for consumers seeking a specific color or looking for a similar shade from a more affordable brand.
 
+Moreover, CIELAB is designed to be perceptually uniform, meaning that the numerical differences between colors correspond to perceived differences to the human eye.
+
 In sum, this approach would enable the creation of a more reliable and user-friendly system for consumers to search and compare makeup by shade.
 
 ## Data Collection, Data Cleaning, and Exploratory Data Analysis
 
-The initial data consists of tables with information on makeup products and links to the makeup images. Some key metadata consists of product category (e.g. blush, lipstick, etc.), brand, shade - fancy names from the brand like `sunset`, `peachy`, `raunchy`-, specific product name, among others. 
+The initial data consists of tables with information on makeup products and links to the makeup images. Some key metadata includes brand, shade - fancy names from the brand like `sunset`, `peachy`, `raunchy`-, specific product name, among others. 
 
 The [notebook](https://github.com/ConstanzaSchibber/capstone_colors/blob/main/notebooks/1_DataEngineering.ipynb) for this section develops a number of functions to collect the images: (1) validation of URLs, (2) downloading the images, (3) checking that every file downloaded is an image and if any image is corrupted.
 
-When it comes to the images, 40% correspond to lipsticks and 35% to blush. Moreover, there are over 159 unique brands and 59.12% of the brands have at least two products in the data.
+<insert key descriptive stats>
 
 ## Human Annotation: Creating Data Labels
 
