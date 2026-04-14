@@ -21,8 +21,9 @@ ANTHROPIC_API_KEY=your_actual_key_here
 **3. Add data files:**
 
 Place the following in `data/processed/` before running notebooks 3–6:
-- `products_with_images.csv` (output of notebook 1)
-- `ground_truth_labels.csv` (output of notebook 2)
+- `products_with_images.csv` (output of notebook 1, updated by 2A and 2B)
+- `annotation_sample.csv` (output of notebook 2A)
+- `ground_truth_labels.csv` (output of notebook 2B)
 - `products_clustered_v2.csv`, `products_clustered_final.csv` (outputs of notebook 3)
 - `products_llm_final.csv` (output of notebook 4)
 
@@ -37,10 +38,18 @@ Images should be placed in `data/img/original/`.
 - Check that all downloaded files are valid, uncorrupted images
 - Exploratory data analysis: product categories, image size, resolution, color distributions
 
-**2. [Data Annotation](https://github.com/ConstanzaSchibber/capstone_colors/blob/main/notebooks/2_DataAnnotation.ipynb)**
-- Manually crop each image to isolate the makeup area (e.g. just the lipstick tip)
-- Extract the average CIELAB color from each cropped image as the ground truth label
+**2A. [Data Annotation: Sampling](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/2A_DataAnnotatioSampling.ipynb)**
+- Consolidate 200+ raw `parent_color` values into 18 color groups via a keyword-based taxonomy
+- Calculate sample size using Cochran's formula (n=188, rounded to 200) with CIELAB L* std from a prior lipstick study
+- Select 222 images via stratified proportional sampling with a minimum floor of 5 per group
+- Copy sampled images to `data/img/groundtruth/` for manual annotation
+
+**2B. [Data Annotation: Ground Truth Labeling](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/2B_DataAnnotationGT.ipynb)**
+- Identify which sampled images received a manual crop (209 out of 222)
+- Extract mean CIELAB color from each cropped swatch image as the ground truth label
 - Store ground truth values in metadata for use in model evaluation
+- Visualize ground truth colors as a swatch grid grouped by color taxonomy
+- Assess color space coverage: mean pairwise ΔE = 30.54 across the sample
 
 **3. [Method A: Color Segmentation with Clustering](https://github.com/ConstanzaSchibber/capstone_colors/blob/main/notebooks/3_Model_A_Clustering.ipynb)**
 - Apply k-means clustering to extract dominant colors from makeup images
