@@ -28,6 +28,7 @@ data/img/
 
 # Generated intermediate CSVs (reproduced by running notebooks in order)
 data/processed/products_with_images.csv
+data/processed/products_clustered.csv
 data/processed/products_clustered_v1.csv
 data/processed/products_clustered_v2.csv
 data/processed/products_clustered_final.csv
