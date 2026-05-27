@@ -26,6 +26,9 @@ credentials.json
 # Images (large, regenerable)
 data/img/
 
+# Trained model checkpoints (large binaries — use Git LFS or store externally)
+models/
+
 # Generated intermediate CSVs (reproduced by running notebooks in order)
 data/processed/products_with_images.csv
 data/processed/products_clustered.csv
