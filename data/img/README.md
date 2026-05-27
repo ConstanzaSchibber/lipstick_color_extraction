@@ -32,6 +32,22 @@ This is the **source folder for all downstream notebooks and annotation work**. 
 
 ---
 
+## `annotation_sample/` — 208 files
+
+**Created by:** Notebook 2C (`2C_DataAnnotationImageRecognition.ipynb`)
+
+208 images copied from `original_clean/` for annotation in Label Studio (14 of the 222 sampled were missing from `original_clean/` due to validation failures in 1B). Each image was labeled with one of five categories (`swatch`, `bullet`, `liquid`, `closed`, `color_not_shown`) and a brush mask over the color-showing area. Annotations exported to `data/processed/annotations_label_studio.json` and parsed into `data/processed/annotations.csv`.
+
+---
+
+## `annotation_sample_closed/` — 40 files
+
+**Created by:** Notebook 2C (`2C_DataAnnotationImageRecognition.ipynb`)
+
+Oversampling batch to increase coverage of the `closed` container class, which had only 6 examples in the initial annotation round. Images were selected by same-product-line matching: the 4 product lines already confirmed as `closed` were searched for unannotated shades (53 candidates total), and 40 were drawn proportionally across product lines. Intended for a second Label Studio annotation round using the same label schema as `annotation_sample/`.
+
+---
+
 ## `groundtruth_old/` — 337 files
 
 **Origin:** Previous multi-category project (blush, lipgloss, lipliner, lipstick combined)
