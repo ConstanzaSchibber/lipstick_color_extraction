@@ -42,6 +42,10 @@ data/processed/products_pipeline.csv
 # Personal notes
 experiments.txt
 
+# Old notebooks
+
+old_notebooks/
+
 # OS
 .DS_Store
 Thumbs.db
