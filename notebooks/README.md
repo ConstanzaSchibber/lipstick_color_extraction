@@ -2,6 +2,8 @@
 
 This folder contains the notebooks for the project, organized in execution order.
 
+> **Just want to see the app?** Try it at [lipstickbycolor.github.io](https://lipstickbycolor.github.io/) — source at [github.com/LipstickByColor](https://github.com/LipstickByColor).
+
 ---
 
 ## Setup
@@ -11,21 +13,19 @@ This folder contains the notebooks for the project, organized in execution order
 pip install -r requirements.txt
 ```
 
-**2. Set up your API key** (required for notebook 4 only):
+**2. Data files by stage:**
 
-Create a `.env` file in the project root:
-```
-ANTHROPIC_API_KEY=your_actual_key_here
-```
-
-**3. Add data files:**
-
-Place the following in `data/processed/` before running notebooks 3–6:
-- `products_with_images.csv` (output of notebook 1, updated by 2A and 2B)
-- `annotation_sample.csv` (output of notebook 2A)
-- `ground_truth_labels.csv` (output of notebook 2B)
-- `products_clustered_v2.csv`, `products_clustered_final.csv` (outputs of notebook 3)
-- `products_llm_final.csv` (output of notebook 4)
+| Notebook | Reads | Writes |
+|----------|-------|--------|
+| 1A | raw metadata CSVs | `products_with_images.csv` |
+| 1B | `products_with_images.csv` | cleaned `products_with_images.csv` |
+| 2A | `products_with_images.csv` | `annotation_sample.csv` |
+| 2B | annotation masks | `ground_truth_labels.csv` |
+| 2C | `annotation_sample.csv` | images for Label Studio |
+| 3A | annotated labels + images | trained ResNet-18 classifier |
+| 3B | classifier + images | evaluated clustering results |
+| 4  | classifier + all images | `products_pipeline.csv` |
+| 5  | `products_pipeline.csv` | visualizations |
 
 Images should be placed in `data/img/original/`.
 
@@ -33,10 +33,16 @@ Images should be placed in `data/img/original/`.
 
 ## Notebooks
 
-**1. [Data Engineering](https://github.com/ConstanzaSchibber/capstone_colors/blob/main/notebooks/1_DataEngineering.ipynb)**
-- Validate URLs and download product images from makeup retailers
-- Check that all downloaded files are valid, uncorrupted images
+**1A. [Data Engineering](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/1A_DataEngineering.ipynb)**
+- Collect product metadata from Ulta and Sephora via API and web scraping
+- Validate URLs and download product images
 - Exploratory data analysis: product categories, image size, resolution, color distributions
+
+> **To run this notebook**, use the sample metadata file included in the repo: `data/product_metadata/product_lipstick_metadata_sample.csv` (173 products). The full scraped dataset is not included.
+
+**1B. [Image Validation](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/1B_DataValidation.ipynb)**
+- Check all downloaded images for corruption and readability
+- Remove invalid files; output a clean image set for downstream processing
 
 **2A. [Data Annotation: Sampling](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/2A_DataAnnotatioSampling.ipynb)**
 - Consolidate 200+ raw `parent_color` values into 18 color groups via a keyword-based taxonomy
@@ -47,33 +53,31 @@ Images should be placed in `data/img/original/`.
 **2B. [Data Annotation: Ground Truth Labeling](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/2B_DataAnnotationGT.ipynb)**
 - Identify which sampled images received a manual crop (209 out of 222)
 - Extract mean CIELAB color from each cropped swatch image as the ground truth label
-- Store ground truth values in metadata for use in model evaluation
 - Visualize ground truth colors as a swatch grid grouped by color taxonomy
 - Assess color space coverage: mean pairwise ΔE = 30.54 across the sample
 
-**3. [Method A: Color Segmentation with Clustering](https://github.com/ConstanzaSchibber/capstone_colors/blob/main/notebooks/3_Model_A_Clustering.ipynb)**
-- Apply k-means clustering to extract dominant colors from makeup images
-- Round 1: baseline algorithm on training set, validated with Delta E
-- Round 2: refine by filtering out near-black and near-white clusters (background/packaging)
-- Round 3: improve handling of PNG images and CIELAB conversion
-- Final evaluation on test set: strong results for blush and lipgloss; lipliner needs further refinement
+**2C. [Data Annotation: Image Type Recognition](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/2C_DataAnnotationImageRecognition.ipynb)**
+- Prepare annotation sample for labeling in Label Studio
+- Classify images by presentation type: `swatch`, `bullet`, `liquid`, `closed`, `color_not_shown`
+- Image type determines which color extraction strategy to apply downstream
 
-**4. [Method B: Color Identification with Multimodal LLM](https://github.com/ConstanzaSchibber/capstone_colors/blob/main/notebooks/4_Model_B_LLM.ipynb)**
-- Use Claude (multimodal LLM) to identify CIELAB colors directly from product images
-- Round 1: baseline prompt, scaled to full dataset
-- Round 2: refined category-specific prompts — mean Delta E improved from 16.4 to 11.5 (30% improvement)
-- Final evaluation: 70% of cases have Delta E below 20, 50% below 15
+**3A. [Image Classifier](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/3A_ImageRecognition.ipynb)**
+- Fine-tune ResNet-18 to classify product images into four types: `swatch`, `bullet_lipstick`, `liquid_lipstick`, `other`
+- Evaluate classifier accuracy on held-out set
+- Apply type-conditional color extraction: each product type routes to the appropriate extraction method
 
-> **Requires an Anthropic API key.** See setup instructions above.
+**3B. [Color Segmentation with Clustering](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/3B_Clustering.ipynb)**
+- K-means clustering to extract dominant colors, routed by the Stage 1 classifier from 3A
+- Filters out near-black and near-white clusters (background/packaging noise)
+- Evaluate against ground truth labels using Delta E
 
-**5. [Comparison of Methods A & B](https://github.com/ConstanzaSchibber/capstone_colors/blob/main/notebooks/5_Comparison.ipynb)**
-- Compare Delta E results across both methods for each product category
-- LLM outperforms clustering overall, particularly for lipstick (62.83% of cases)
-- Includes visualization of color predictions vs. ground truth
+**4. [Production Pipeline](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/4_Pipeline.ipynb)**
+- Apply the full two-stage pipeline to all ~9k product images
+- Stage 1: classify each image with the ResNet-18 classifier
+- Stage 2: extract color using the type-appropriate method (clustering or swatch extraction)
+- Output: `products_pipeline.csv` with L, a, b, and hex values for every product
 
-**6. [Streamlit App](https://github.com/ConstanzaSchibber/capstone_colors/blob/main/notebooks/6_StreamlitApp.ipynb)**
-- Generate color swatches for the UI
-- Streamlit app code for filtering makeup by color, brand, and category
-- Deployment instructions
-
-> **Just want to run the app?** A self-contained version is available at [github.com/ConstanzaSchibber/makeup-filter](https://github.com/ConstanzaSchibber/makeup-filter).
+**5. [CIELAB Visualization](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/5_CIELAB_Visualization.ipynb)**
+- Visualize the distribution of extracted colors across the CIELAB color space
+- a\*–b\* scatter plot (chromatic plane) and L\* distribution (lightness)
+- Faceted views by product format (swatch, bullet, liquid)
