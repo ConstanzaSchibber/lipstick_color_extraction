@@ -49,6 +49,7 @@ notebooks/portfolio_stats.ipynb
 
 # Old notebooks
 old_notebooks/
+notebooks/3C_LLM.ipynb
 
 # OS
 .DS_Store
