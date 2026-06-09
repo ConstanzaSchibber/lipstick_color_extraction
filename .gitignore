@@ -37,6 +37,7 @@ data/processed/products_clustered_v2.csv
 data/processed/products_clustered_final.csv
 data/processed/ground_truth_labels.csv
 data/processed/products_llm_final.csv
+data/processed/products_pipeline.csv
 
 # Personal notes
 experiments.txt

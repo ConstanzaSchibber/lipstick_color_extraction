@@ -43,6 +43,8 @@ Product metadata, including brand, product name, shade, and color descriptors, w
 
 `<insert key descriptive stats>`
 
+> **Note on data availability:** The full metadata file (`data/product_metadata/product_lipstick_metadata.csv`) is not committed to this repository to protect the scraped dataset from being reused wholesale. A sample of 173 rows is included at `data/product_metadata/product_lipstick_metadata_sample.csv` so the notebooks can be run end-to-end. If you need access to the full dataset for research purposes, please open an issue.
+
 ---
 
 ## Human Annotation
