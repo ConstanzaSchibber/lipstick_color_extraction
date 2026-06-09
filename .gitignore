@@ -23,6 +23,9 @@ env/
 service_account.json
 credentials.json
 
+# Proprietary scraped data
+data/product_metadata/product_lipstick_metadata.csv
+
 # Images (large, regenerable)
 data/img/
 
