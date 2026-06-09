@@ -44,9 +44,10 @@ data/processed/products_pipeline.csv
 
 # Personal notes
 experiments.txt
+PRIORITIES.md
+notebooks/portfolio_stats.ipynb
 
 # Old notebooks
-
 old_notebooks/
 
 # OS

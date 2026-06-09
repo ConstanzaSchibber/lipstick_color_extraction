@@ -1,5 +1,5 @@
 """
-Regenerate lipstick-data.js and lipstick-images.js from products_pipeline.csv.
+Regenerate lipstick-data.js and lipstick-images.js for webapp from products_pipeline.csv.
 - Colors (L, a, b, hex) come from the new CSV
 - Finish is preserved from the existing lipstick-data.js (joined on brand+product+shade)
 - Any product in the CSV without a matching finish defaults to "Cream"
