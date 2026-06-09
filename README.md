@@ -16,6 +16,7 @@
 - [Method 2: Multimodal LLM](#method-2-multimodal-llm)
 - [Comparative Analysis](#comparative-analysis)
 - [Streamlit App](#streamlit-app)
+- [Citation](#citation)
 
 ---
 
@@ -53,3 +54,17 @@ To create ground truth color labels, I selected a stratified sample of 222 lipst
 
 ---
 
+## Citation
+
+If you use this project in your research, please cite:
+
+```bibtex
+@misc{schibber2024lipstick,
+  author       = {Schibber, Constanza},
+  title        = {Advancing Lipstick Color Matching with ML and Multimodal LLM},
+  year         = {2024},
+  publisher    = {GitHub},
+  url          = {https://github.com/ConstanzaSchibber/lipstick_color_extraction},
+  note         = {Licensed under CC BY-NC 4.0}
+}
+```
