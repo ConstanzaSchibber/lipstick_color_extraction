@@ -1,12 +1,19 @@
-# Project: Advancing Lipstick Color Matching with ML and Multimodal LLM
+# Project: Makeup Color Retrieval System
 
 **tl;dr:**
 
 - **Goal:** Identify the color of lipstick products in CIELAB color space to enable comparison by standardized shade rather than by the creative names brands assign.
 - **Data:** Product metadata and images collected from makeup retailers via API and web scraping.
-- **Methods:** (1) Color segmentation with clustering, (2) Multimodal Large Language Model (Claude)
+- **Methods:** 
 - **App:** Web interface for filtering lipstick by color
 - **Tech stack:** Python, Jupyter, Streamlit
+
+---
+
+> **Just want to see the app?** Try it at [lipstickbycolor.github.io](https://lipstickbycolor.github.io/). Source code at [github.com/LipstickByColor](https://github.com/LipstickByColor).
+
+> **Just want to read a high-level overview?** [About](https://lipstickbycolor.github.io/about.html).
+---
 
 *Table of Contents*
 - [Problem & Solution](#problem--solution)
@@ -22,11 +29,16 @@
 
 ## Problem & Solution
 
-Lipstick products have fanciful and inconsistent color names, making it difficult for consumers to find or compare shades across brands. For example, the following products are all labeled "mauve," yet they are clearly different shades — some are not even mauve by any standard definition.
+Lipstick products have fanciful and inconsistent color names, making it difficult for consumers to find or compare shades across brands. For example, all of following products result from querying or filtering lipstick by 'Pink;' yet they are all very different shades. Scrolling through hundreds of results to narrow down the shade(s) you'd like would be very time consuming.
 
-<div align="center">
-<img src="https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/5be3cc59ebc4906092fa95ccbdc54b890ca8827e/img/Screen%20Shot%202024-08-24%20at%208.52.52%20PM.png" width=50%>
-</div>
+<table>
+  <tr>
+    <td align="center"><b>Amazon</b><br><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/amazon-pink-results.png" width="22%"></td>
+    <td align="center"><b>Google</b><br><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/google-pink-results.png" width="22%"></td>
+    <td align="center"><b>Sephora</b><br><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/sephora-pink-results.png" width="22%"></td>
+    <td align="center"><b>Ulta</b><br><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/ulta-pink-results.png" width="22%"></td>
+  </tr>
+</table>
 
 Retailer color filters are also limited. Below are the lipstick color options at Sephora and Ulta, compared to the more granular palette my app provides:
 
