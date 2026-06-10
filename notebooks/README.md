@@ -2,7 +2,7 @@
 
 This folder contains the notebooks for the project, organized in execution order.
 
-> **Just want to see the app?** Try it at [lipstickbycolor.github.io](https://lipstickbycolor.github.io/) — source at [github.com/LipstickByColor](https://github.com/LipstickByColor).
+> **Just want to see the app?** Try it at [lipstickbycolor.github.io](https://lipstickbycolor.github.io/). Source code at [github.com/LipstickByColor](https://github.com/LipstickByColor).
 
 ---
 
@@ -34,7 +34,7 @@ Images should be placed in `data/img/original/`.
 ## Notebooks
 
 **1A. [Data Engineering](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/1A_DataEngineering.ipynb)**
-- Collect product metadata from Ulta and Sephora via API and web scraping
+- Collect product metadata from retailers via API and web scraping
 - Validate URLs and download product images
 - Exploratory data analysis: product categories, image size, resolution, color distributions
 
@@ -45,7 +45,7 @@ Images should be placed in `data/img/original/`.
 - Remove invalid files; output a clean image set for downstream processing
 
 **2A. [Data Annotation: Sampling](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/2A_DataAnnotationSampling.ipynb)**
-- Consolidate 200+ raw `parent_color` values into 18 color groups via a keyword-based taxonomy
+- Consolidate 200+ raw `parent_color` values into 18 color groups via a keyword-based LLM-assisted taxonomy.
 - Calculate sample size using Cochran's formula (n=188, rounded to 200) with CIELAB L* std from a prior lipstick study
 - Select 222 images via stratified proportional sampling with a minimum floor of 5 per group
 - Copy sampled images to `data/img/groundtruth/` for manual annotation
