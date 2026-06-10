@@ -42,9 +42,7 @@ Lipstick products have fanciful and inconsistent color names, making it difficul
 
 Retailer color filters are also limited. Below are the lipstick color options at Sephora and Ulta, compared to the more granular palette my app provides:
 
-<div align="center">
-<img src="https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/img/filters_retail.png" width=75%>
-</div>
+
 
 By mapping lipstick colors to the [CIELAB color space](https://en.wikipedia.org/wiki/CIELAB_color_space), I create a standardized, perceptually uniform representation that enables accurate shade comparison across brands. CIELAB represents color in three dimensions: L (lightness), a (green to red), and b (blue to yellow). Equal numerical differences in CIELAB correspond to roughly equal perceived differences to the human eye, making it ideal for color matching.
 
