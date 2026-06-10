@@ -61,7 +61,7 @@ Images should be placed in `data/img/original/`.
 - Classify images by presentation type: `swatch`, `bullet`, `liquid`, `closed`, `color_not_shown`
 - Image type determines which color extraction strategy to apply downstream
 
-**3A. [Image Classifier](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/3A_ImageRecognition.ipynb)**
+**3A. [Image Classifier](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/3A_ImageRecognitionSegmentation.ipynb)**
 - Fine-tune ResNet-18 to classify product images into four types: `swatch`, `bullet_lipstick`, `liquid_lipstick`, `other`
 - Evaluate classifier accuracy on held-out set
 - Apply type-conditional color extraction: each product type routes to the appropriate extraction method
