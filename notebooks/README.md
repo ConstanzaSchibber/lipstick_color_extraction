@@ -44,7 +44,7 @@ Images should be placed in `data/img/original/`.
 - Check all downloaded images for corruption and readability
 - Remove invalid files; output a clean image set for downstream processing
 
-**2A. [Data Annotation: Sampling](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/2A_DataAnnotatioSampling.ipynb)**
+**2A. [Data Annotation: Sampling](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/2A_DataAnnotationSampling.ipynb)**
 - Consolidate 200+ raw `parent_color` values into 18 color groups via a keyword-based taxonomy
 - Calculate sample size using Cochran's formula (n=188, rounded to 200) with CIELAB L* std from a prior lipstick study
 - Select 222 images via stratified proportional sampling with a minimum floor of 5 per group
