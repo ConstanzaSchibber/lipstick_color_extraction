@@ -34,14 +34,22 @@ Lipstick products have fanciful and inconsistent color names, making it difficul
 <table>
   <tr>
     <td align="center" width="25%"><b>Amazon</b><br><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/amazon-pink-results.png" width="100%"></td>
-    <td align="center" width="25%"><b>Google</b><br><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/google-pink-results.png" width="100%"></td>
+    <td align="center" width="25%"><b>Google Shopping</b><br><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/google-pink-results.png" width="100%"></td>
     <td align="center" width="25%"><b>Sephora</b><br><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/sephora-pink-results.png" width="60%"></td>
     <td align="center" width="25%"><b>Ulta</b><br><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/ulta-pink-results.png" width="60%"></td>
   </tr>
 </table>
 
-Retailer color filters are also limited. Below are the lipstick color options at Sephora and Ulta, compared to the more granular palette my app provides:
+Search engines on Google Shopping or Amazon don't have color filters so users have to come up with a name for a shade when searching for a lipstick. While pink or red might be obvious, many colors like mauve, dusty pink, terracota, among others are not obvious and require a lot of product research. 
 
+Retailer color filters, such as Sephora and Ulta, are limited, such illustrated below:
+
+<table>
+  <tr>
+    <td align="center" width="50%"><b>Sephora</b><br><img src="https://raw.githubusercontent.com/ConstanzaSchibber/lipstick_color_extraction/main/img/sephorafilter.png" width="100%"></td>
+    <td align="center" width="50%"><b>Ulta</b><br><img src="https://raw.githubusercontent.com/ConstanzaSchibber/lipstick_color_extraction/main/img/ultafilter.png" width="100%"></td>
+  </tr>
+</table>
 
 
 By mapping lipstick colors to the [CIELAB color space](https://en.wikipedia.org/wiki/CIELAB_color_space), I create a standardized, perceptually uniform representation that enables accurate shade comparison across brands. CIELAB represents color in three dimensions: L (lightness), a (green to red), and b (blue to yellow). Equal numerical differences in CIELAB correspond to roughly equal perceived differences to the human eye, making it ideal for color matching.
