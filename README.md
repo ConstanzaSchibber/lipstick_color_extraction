@@ -29,7 +29,16 @@
 
 ## Problem & Solution
 
-Lipstick products have fanciful and inconsistent color names, making it difficult for consumers to find or compare shades across brands. For example, all of following products result from querying or filtering lipstick by 'Pink;' yet they are all very different shades. Scrolling through hundreds of results to narrow down the shade(s) you'd like would be very time consuming.
+Lipsticks come in every color and shade imaginable, but finding a specific color or shade online is surprisingly difficult.
+
+First, brand naming is inconsistent and opaque. Brands use evocative names like "Velvet Plum," "Midnight Berry," and "Spiced Rosewood" that don't map to a specific color. Even when a color appears in the name, it isn't consistent across or within brands. All of the shades below, for instance, are called "mauve" by different brands.
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/ConstanzaSchibber/capstone_colors/b633a98ab61db59259cd5440def7f9f6f10a3267/img/Screen%20Shot%202024-08-24%20at%208.52.52%20PM.png" width="60%">
+</div>
+
+
+Second, retailer search and filtering tools are inadequate. Filtering by "Pink" returns hundreds of results spanning wildly different shades such as the ones below.
 
 <table>
   <tr>
@@ -40,9 +49,8 @@ Lipstick products have fanciful and inconsistent color names, making it difficul
   </tr>
 </table>
 
-Search engines on Google Shopping or Amazon don't have color filters so users have to come up with a name for a shade when searching for a lipstick. While pink or red might be obvious, many colors like mauve, dusty pink, terracota, among others are not obvious and require a lot of product research. 
 
-Retailer color filters, such as Sephora and Ulta, are limited, such illustrated below:
+Some retailers like Sephora and Ulta offer limited color filters, most likely based on metadata supplied by brands, that collapse the entire spectrum into a handful of broad buckets. Others like Amazon and Google Shopping offer no color filters at all, forcing users to search by name. While "pink" or "red" might feel obvious, shades like mauve, dusty rose, or terracotta are ambiguous. And there's no guarantee the search engine returns useful results.
 
 <table>
   <tr>
@@ -52,7 +60,11 @@ Retailer color filters, such as Sephora and Ulta, are limited, such illustrated 
 </table>
 
 
-By mapping lipstick colors to the [CIELAB color space](https://en.wikipedia.org/wiki/CIELAB_color_space), I create a standardized, perceptually uniform representation that enables accurate shade comparison across brands. CIELAB represents color in three dimensions: L (lightness), a (green to red), and b (blue to yellow). Equal numerical differences in CIELAB correspond to roughly equal perceived differences to the human eye, making it ideal for color matching.
+Given these limitations, not only it's difficult to discover and search for lipsticks, but comparing colors across brands or finding a cheaper option is extremely difficult. 
+
+
+
+By mapping lipstick colors to the [CIELAB color space](https://lipstickbycolor.github.io/color-guide.html), I create a standardized, perceptually uniform representation that enables accurate shade comparison across brands. CIELAB represents color in three dimensions: L (lightness), a (green to red), and b (blue to yellow). Equal numerical differences in CIELAB correspond to roughly equal perceived differences to the human eye, making it ideal for color matching.
 
 ---
 
