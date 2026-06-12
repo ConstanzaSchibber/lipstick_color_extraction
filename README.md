@@ -111,7 +111,7 @@ No benchmark dataset exists for "the true color of this lipstick product image,"
 </table>
 
 
-![alt text](img/nnotation_label_distribution.png)
+![alt text](img/annotation_label_distribution.png)
 
 ---
 
@@ -146,12 +146,11 @@ Two U-Nets (ResNet-18 encoder, ImageNet-pretrained, 256×256 input → binary ma
 
 - **Segmenter A** (`bullet` + `liquid`): finetuned on 74 images, evaluated with IoU. A `ReduceLROnPlateau` schedule with longer training *reduced* validation IoU — the bottleneck is dataset size, not optimization, so the simple 20-epoch fixed-LR run was kept.
 
-![alt text](img/segmentation_bullet_liquid.png)
+<img src="img/segmentation_bullet_liquid.png" width="400">
 
 - **Segmenter B** (`closed` — containers with the product visible through a window or transparent packaging): with only ~27 training images, training from ImageNet weights produced loose masks. Two changes fixed it: **warm-starting from Segmenter A's weights** (the encoder and decoder already know what a lipstick color-region mask looks like) and **synchronized augmentation** (identical flips and ±15° rotations applied to image and mask). After these, predicted masks align tightly with ground truth.
 
-![alt text](img/segmentation_closed.png)
-
+<img src="img/segmentation_closed.png" width="400">
 
 ### Color extraction from the masked region
 
@@ -178,8 +177,10 @@ Inspecting the 12 highest-ΔE cases (image + mask overlay + predicted-vs-truth s
 
 I closed the loop with a lightweight active-learning cycle:
 
-1. **Surface:** score classifier confidence on images outside the training set; low-confidence predictions (typically split between `bullet`/`liquid` and `closed`) flag the failure mode.
+1. **Surface:** score classifier confidence on images outside the training set; low-confidence predictions (typically split between `bullet`/`liquid` and `closed`) flag the failure mode. 
+
 2. **Correct:** export those images as an annotation queue, review, and fix only the type label — no new masks required.
+
 3. **Retrain:** merge 48 corrected images (mostly `closed`) into the training set, recompute class weights, retrain Stage 1.
 
 Accuracy on the original validation images was already near-ceiling, so the gain shows up where it matters: **generalization to unseen windowed-container images** — the exact category the production pipeline was misrouting. Expanded validation accuracy: 98%.
