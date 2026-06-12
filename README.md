@@ -59,8 +59,8 @@ Some retailers like Sephora and Ulta offer limited color filters, most likely ba
 
 <table>
   <tr>
-    <td align="center" width="50%"><b>Sephora</b><br><img src="img/sephorafilter.png" width="100%"></td>
-    <td align="center" width="50%"><b>Ulta</b><br><img src="img/ultafilter.png" width="100%"></td>
+    <td align="center" width="50%"><b>Sephora</b><br><img src="img/sephorafilter.png" style="max-width:220px; width:100%"></td>
+    <td align="center" width="50%"><b>Ulta</b><br><img src="img/ultafilter.png" style="max-width:220px; width:100%"></td>
   </tr>
 </table>
 
