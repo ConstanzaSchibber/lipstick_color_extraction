@@ -21,13 +21,16 @@
 ---
 
 *Table of Contents*
-- [Problem & Solution](#problem--solution)
-- [Data Collection](#data-collection)
-- [Human Annotation](#human-annotation)
-- [Method 1: Color Segmentation](#method-1-color-segmentation)
-- [Method 2: Multimodal LLM](#method-2-multimodal-llm)
-- [Comparative Analysis](#comparative-analysis)
-- [Streamlit App](#streamlit-app)
+- [The Problem](#the-problem)
+- [Methods Overview](#methods-overview)
+- [Human Annotation & Ground Truth](#human-annotation--ground-truth)
+- [Stage 1: Product-Type Classifier](#stage-1-product-type-classifier)
+- [Stage 2, Strategy 1: K-Means Clustering](#stage-2-strategy-1-k-means-clustering)
+- [Stage 2, Strategy 2: U-Net Segmentation + Robust Extraction](#stage-2-strategy-2-u-net-segmentation--robust-extraction)
+- [Error Analysis → Active Learning](#error-analysis--active-learning)
+- [Evaluation: Clustering vs. Segmentation](#evaluation-clustering-vs-segmentation)
+- [Production Run & Color Index](#production-run--color-index)
+- [Learnings](#learnings)
 - [Citation](#citation)
 
 ## The Problem
@@ -64,6 +67,30 @@ Some retailers like Sephora and Ulta offer limited color filters, most likely ba
 Given these limitations, it's not only hard to discover and search for lipsticks, but comparing shades across brands or finding a cheaper alternative to a known favorite is very time consuming.
 
 By mapping lipstick colors to the [CIELAB color space](https://lipstickbycolor.github.io/color-guide.html), I create a standardized, perceptually uniform representation that enables accurate shade comparison across brands. CIELAB represents color in three dimensions: L (lightness), a (green to red), and b (blue to yellow). Equal numerical differences in CIELAB correspond to roughly equal perceived differences to the human eye. This is the same standard cosmetics manufacturers use internally for color quality control, and it makes the matching problem measurable: the distance between two colors (Delta E) directly quantifies how different they look.
+
+**Search by color wheel** — browse the spectrum and drill into a shade:
+
+<table>
+  <tr>
+    <td width="50%"><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/flow-wheel-a.png" width="100%"></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/flow-wheel-b.png" width="100%"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/flow-wheel-c.png" width="100%"></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/flow-wheel-d.png" width="100%"></td>
+  </tr>
+</table>
+
+**Search by photo** — upload any image to match its color against the catalog:
+
+<table>
+  <tr>
+    <td width="50%"><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/flow-photo-a.png" width="100%"></td>
+    <td width="50%"><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/flow-photo-b.png" width="100%"></td>
+  </tr>
+</table>
+
+**Search by hex** — paste any hex code for precise shade matching or search color space to find hex code. Products can be saved to a **wishlist** for easy comparison across shades and brands.
 
 ---
 
@@ -194,9 +221,9 @@ Accuracy on the original validation images was already near-ceiling, so the gain
 
 ---
 
-## Choosing between segmentation and clustering
+## Evaluation: Clustering vs. Segmentation
 
-Head-to-head on the same labeled images, we that that, for swatches, k-means peak extraction beats segmentation. Swatches are entirely the target color, so a U-Net adds inference cost and failure surface without adding accuracy. However, for bullet and liquid lipstick and for closed containers that have the color visible through a transparent window, segmentation outperforms k-means substantially. Clustering predicted colors that were very different to the ground truth (16–26 mean ΔE), while segmentation brings the error down close to the limit of what the human eye can tell apart (ΔE 2–4.6):
+Head-to-head on the same labeled images, we see that, for swatches, k-means peak extraction beats segmentation. Swatches are entirely the target color, so a U-Net adds inference cost and failure surface without adding accuracy. However, for bullet and liquid lipstick and for closed containers that have the color visible through a transparent window, segmentation outperforms k-means substantially. Clustering predicted colors that were very different to the ground truth (16–26 mean ΔE), while segmentation brings the error down close to the limit of what the human eye can tell apart (ΔE 2–4.6):
 
 | Image type | Clustering (k-means) | Segmentation (U-Net) | Winner |
 |---|---|---|---|
@@ -264,7 +291,7 @@ If you use this project in your research, please cite:
 ```bibtex
 @misc{schibber2024lipstick,
   author       = {Schibber, Constanza},
-  title        = {Advancing Lipstick Color Matching with ML and Multimodal LLM},
+  title        = {Lipstick Color Finder: ML-Powered Color Search Across 9,000+ Products},
   year         = {2024},
   publisher    = {GitHub},
   url          = {https://github.com/ConstanzaSchibber/lipstick_color_extraction},
