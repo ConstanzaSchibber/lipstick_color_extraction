@@ -232,7 +232,7 @@ Head-to-head on the same labeled images, we see that, for swatches, k-means peak
 | swatch | **2.16 mean ΔE** | 3.15 mean ΔE | Clustering |
 | bullet / liquid / closed | 16–26 mean ΔE | ~2–4.6 mean ΔE| Segmentation |
 
-Below are randomly selected images comparing the color extracted by clustering (model A) and segmentation (model C), against ground truth.
+Below are randomly selected images comparing the color extracted by clustering (A pred, on the left) and segmentation (C pred, on the right), against ground truth (color at the bottom).
 
 <table>
   <tr>
