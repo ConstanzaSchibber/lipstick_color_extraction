@@ -90,36 +90,49 @@ Both are scored against human-annotated ground truth using **Delta E CIE 2000 (�
 
 ## Human Annotation & Ground Truth
 
-No benchmark dataset exists for "the true color of this lipstick product image," so I designed one.
+No benchmark dataset exists for "the true color of this lipstick product image," so I designed one. 
 
 **Sampling.** Raw retailer metadata contained 200+ inconsistent `parent_color` values, which I consolidated into 18 color groups using a keyword-based, LLM-assisted taxonomy. I calculated the required sample size with Cochran's formula (n=188, rounded to 200), using the CIELAB L* standard deviation from a prior lipstick color study as the variance estimate, then drew 222 images via stratified proportional sampling with a minimum floor of 5 images per color group to guarantee coverage of rare shades (deep purples, true oranges) that proportional sampling alone would miss.
 
 **Labeling.** For each sampled image I manually cropped the region showing the true product color and extracted the mean CIELAB value as the ground-truth label (209 of 222 images were croppable). Mean pairwise ΔE across the labeled sample is 30.5, confirming the ground truth spans the color space rather than clustering in a few popular shades.
 
+![alt text](img/ground_truth_coverage.png)
+
+**Image-type annotation.** In Label Studio, I annotated each image's presentation type into five classes: `swatch`, `bullet`, `liquid`, `closed` (containers where the product color is visible through a window or transparent packaging), and `color_not_shown` (fully closed packaging with no recoverable color). I also hand-drew segmentation masks over the color region. All five types are kept as first-class classifier labels. The label `color_not_shown`, when there is no color to extract from these images is kept so that the classifier is able to *recognize* them and thus, the production pipeline can decline extraction instead of extracting an incorrect color. These annotations train both the classifier and the segmenters.
+
+<table>
+  <tr>
+    <td align="center" width="20%"><b>Swatch</b><br><img src="img/lipstick__nars__audacious_lipstick__greta.jpg" width="100%"></td>
+    <td align="center" width="20%"><b>Bullet</b><br><img src="img/lipstick__marie_hunter__lustrous_lipstick__ogden_avenue.jpg" width="100%"></td>
+    <td align="center" width="20%"><b>Liquid</b><br><img src="img/lipstick__nyx_professional_makeup__liquid_suede_cream_lipstick__downtown_beauty.jpg" width="100%"></td>
+    <td align="center" width="20%"><b>Closed</b><br><img src="img/lipstick__chanel__le_rouge_duo_ultra_tenue_ultrawear_liquid_lip_colour__158_intense_blueberry.jpg" width="100%"></td>
+    <td align="center" width="20%"><b>Color Not Shown</b><br><img src="img/lipstick__nyx_professional_makeup__fat_oil_slick_click_vegan_lip_balm__13_going_live.jpg" width="100%"></td>
+  </tr>
+</table>
 
 
-
-
-**Image-type annotation.** In Label Studio, I annotated each image's presentation type into five classes: `swatch`, `bullet`, `liquid`, `closed` (containers where the product color is visible through a window or transparent packaging), and `color_not_shown` (fully closed packaging with no recoverable color). I also hand-drew segmentation masks over the color region — for `closed` images, the mask traces the color visible *through* the packaging. All five types are kept as first-class classifier labels — including `color_not_shown`: there is no color to extract from these images, but the classifier must still be able to *recognize* them so the production pipeline can decline extraction instead of inventing a color. These annotations train both the classifier and the segmenters.
+![alt text](img/nnotation_label_distribution.png)
 
 ---
 
 ## Stage 1: Product-Type Classifier
 
-ResNet-18 (ImageNet-pretrained) fine-tuned to classify images into `swatch`, `bullet_lipstick`, `liquid_lipstick`, `closed`, and `color_not_shown`, in two phases: 5 epochs training only the head with the backbone frozen, then 15 epochs of full fine-tuning at a lower learning rate. Class imbalance (swatches are by far the most common annotation; `closed` and `color_not_shown` the rarest) is handled with weighted cross-entropy loss. **Validation accuracy: 97%.**
+ResNet-18 (ImageNet-pretrained) fine-tuned to classify images into `swatch`, `bullet_lipstick`, `liquid_lipstick`, `closed`, and `color_not_shown`, in two phases: 5 epochs training only the head with the backbone frozen, then 15 epochs of full fine-tuning at a lower learning rate. Class imbalance (swatches are by far the most common annotation; `closed` and `color_not_shown` the rarest) is handled with weighted cross-entropy loss. 
 
-This classifier is the router for everything downstream: both extraction strategies, the production pipeline, and the active-learning loop all depend on it. Images classified `color_not_shown` exit here — there is no color to extract, so none is invented.
+**Validation accuracy: 97%.**
+
+This classifier is the router for everything downstream: both extraction strategies, the production pipeline, and the active-learning loop all depend on it. Images classified `color_not_shown` exit here, because there is no color to extract.
 
 ---
-
 ## Stage 2, Strategy 1: K-Means Clustering
 
-The intuition: the product color should be a dominant color cluster in the image. A single global k underperforms because a swatch, a bullet, and a tube have fundamentally different visual structure — so k-means runs with a **per-type optimal k** chosen by the elbow method on each predicted category. Two variants are compared per type: *peak* (largest cluster by pixel count) and *mean* (average across non-background clusters), with near-black and near-white clusters filtered as packaging/background noise.
+The product color should be a dominant color cluster in the image. A single global k underperforms because a swatch, a bullet, and a tube have fundamentally different visual structure, so k-means runs with a **per-type optimal k** chosen by the elbow method on each predicted category. Two variants are compared per type: *peak* (largest cluster by pixel count) and *mean* (average across non-background clusters), with near-black and near-white clusters filtered as packaging/background noise.
 
 **Results (ΔE vs. ground truth):**
 
-- **Swatch — works (ΔE ≈ 2.2 with peak):** the image *is* the color, so the largest cluster captures it directly.
-- **Bullet / liquid — fails (ΔE ≈ 16–26):** packaging dominates the pixel count, so the biggest clusters are the tube and background. No clustering variant can fix this, because clustering knows *what* colors are present but not *where* the product color is.
+- **Swatch works (ΔE ≈ 2.2 with peak):** the image *is* the color, so the largest cluster captures it directly.
+
+- **Bullet / liquid fail (ΔE ≈ 16–26):** packaging dominates the pixel count, so the biggest clusters are the tube and background. No clustering variant can fix this, because clustering knows *what* colors are present but not *where* the product color is.
 
 That diagnosis — the problem for container shots is localization, not color statistics — is what the second strategy addresses.
 
@@ -131,17 +144,20 @@ That diagnosis — the problem for container shots is localization, not color st
 
 Two U-Nets (ResNet-18 encoder, ImageNet-pretrained, 256×256 input → binary mask) trained on the hand-drawn Label Studio masks:
 
-- **Segmenter A** (`bullet` + `liquid`): trained on 74 images, evaluated with IoU. A `ReduceLROnPlateau` schedule with longer training *reduced* validation IoU — the bottleneck is dataset size, not optimization, so the simple 20-epoch fixed-LR run was kept.
+- **Segmenter A** (`bullet` + `liquid`): finetuned on 74 images, evaluated with IoU. A `ReduceLROnPlateau` schedule with longer training *reduced* validation IoU — the bottleneck is dataset size, not optimization, so the simple 20-epoch fixed-LR run was kept.
+
+![alt text](img/segmentation_bullet_liquid.png)
+
 - **Segmenter B** (`closed` — containers with the product visible through a window or transparent packaging): with only ~27 training images, training from ImageNet weights produced loose masks. Two changes fixed it: **warm-starting from Segmenter A's weights** (the encoder and decoder already know what a lipstick color-region mask looks like) and **synchronized augmentation** (identical flips and ±15° rotations applied to image and mask). After these, predicted masks align tightly with ground truth.
 
-### Extraction from the masked region
+![alt text](img/segmentation_closed.png)
 
-I compared five extraction strategies (mean, median, dominant cluster, and others) on the same masked pixels, scored by ΔE:
 
-- `bullet` / `liquid` → **median** LAB of masked pixels (median is robust to highlights and shadows that skew the mean)
-- `closed` → **dominant-cluster** LAB (the mask inevitably catches some container pixels through transparent packaging; clustering separates them from the true color)
+### Color extraction from the masked region
 
-### Results (ΔE CIE 2000 vs. ground truth, median per type)
+After identifying the area of the image that has the color we need, we have to extract it. 
+
+I compared five extraction strategies (mean, median, dominant cluster, and others) on the same masked pixels, scored by ΔE with respect to the ground truth (out of sample):
 
 | Type | Median ΔE | Mean ΔE | n |
 |---|---|---|---|
@@ -150,11 +166,13 @@ I compared five extraction strategies (mean, median, dominant cluster, and other
 | closed | 2.03 | 2.22 | 4 |
 | liquid_lipstick | 2.41 | 6.57 | 34 |
 
-Median ΔE is at or near the just-noticeable-difference threshold (~2) for every product type — including bullets and liquids, where clustering scored ΔE 16–26. The mean–median gap (especially for liquids) is driven by a small number of outliers, which I investigated directly.
+Median ΔE is at or near the just-noticeable-difference threshold (~2) for every product type. This includes bullets and liquids, where clustering scored very poorly, ΔE 16–26. The mean–median gap (especially for liquids) is driven by a small number of outliers, which I investigated directly.
+
 
 ---
-
 ## Error Analysis → Active Learning
+
+The results detailed above included an iteration of active learning.
 
 Inspecting the 12 highest-ΔE cases (image + mask overlay + predicted-vs-truth swatches side by side) revealed a consistent pattern: the failures weren't segmentation or extraction errors — they were **Stage 1 routing errors**. Windowed-container images misclassified as `bullet` or `liquid` get sent through the wrong segmenter and produce nonsense colors.
 
@@ -168,22 +186,44 @@ Accuracy on the original validation images was already near-ceiling, so the gain
 
 ---
 
-## Choosing the Winner per Type
+## Choosing between segmentation and clustering
 
-Head-to-head on the same labeled images, behind the same Stage 1 router:
+Head-to-head on the same labeled images, we that that, for swatches, k-means peak extraction beats segmentation. Swatches are entirely the target color, so a U-Net adds inference cost and failure surface without adding accuracy. However, for bullet and liquid lipstick and for closed containers that have the color visible through a transparent window, segmentation outperforms k-means substantially. Clustering predicted colors that were very different to the ground truth (16–26 mean ΔE), while segmentation brings the error down close to the limit of what the human eye can tell apart (ΔE 2–6.6):
 
 | Image type | Clustering (k-means) | Segmentation (U-Net) | Winner |
 |---|---|---|---|
 | swatch | **2.16 mean ΔE** | 3.15 mean ΔE | Clustering |
-| bullet / liquid / closed | 16–26 | ~2–6.6 | Segmentation |
+| bullet / liquid / closed | 16–26 mean ΔE | ~2–6.6 mean ΔE| Segmentation |
 
-For swatches, k-means peak extraction beats segmentation — the image is almost entirely the target color, so a U-Net adds inference cost and failure surface without adding accuracy. For container shots, segmentation is not optional.
 
 **Production routing:** classify with Stage 1, then extract with k-means for swatches, U-Net segmentation for bullet, liquid, and `closed`, and decline extraction for `color_not_shown`. Routing each type to the cheapest strategy that wins makes the system both more accurate and easier to maintain — no masks or segmentation model needed for the largest image category.
+
+
+
+
 
 ---
 
 ## Production Run & Color Index
+
+```mermaid
+flowchart TD
+    A["📷 Product image"] --> B["ResNet-18 classifier<br/><i>image presentation type</i>"]
+    B -->|swatch| C["K-means clustering<br/><i>peak cluster</i>"]
+    B -->|bullet_lipstick| D["U-Net Segmenter A<br/><i>median LAB of masked pixels</i>"]
+    B -->|liquid_lipstick| D
+    B -->|closed| E["U-Net Segmenter B<br/><i>dominant cluster of masked pixels</i>"]
+    B -->|color_not_shown| F["No extraction<br/><i>fall back to another product image,<br/>else exclude from index</i>"]
+    C --> G["CIELAB coordinate<br/>(L*, a*, b*)"]
+    D --> G
+    E --> G
+    G --> H[("Color index<br/>9,000+ products")]
+    H --> I["Search by ΔE distance<br/>color wheel · photo upload · hex"]
+
+    style F stroke-dasharray: 5 5
+    style G fill:#f9d5e5
+    style H fill:#e8e8e8
+```
 
 The hybrid pipeline runs over the full catalog of **9,167 product images** with batched ResNet-18 inference for routing, then type-specific extraction:
 
