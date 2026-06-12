@@ -138,7 +138,6 @@ The product color should be a dominant color cluster in the image. A single glob
 
 - **Bullet / liquid fail (ΔE ≈ 16–26):** packaging dominates the pixel count, so the biggest clusters are the tube and background. No clustering variant can fix this, because clustering knows *what* colors are present but not *where* the product color is.
 
-That diagnosis — the problem for container shots is localization, not color statistics — is what the second strategy addresses.
 
 ---
 
@@ -170,7 +169,7 @@ I compared five extraction strategies (mean, median, dominant cluster, and other
 |---|---|---|---|
 | swatch | 1.12 | 3.15 | 84 |
 | bullet_lipstick | 1.96 | 3.87 | 53 |
-| closed | 2.03 | 2.22 | 4 |
+| closed | 2.03 | 2.22 | 24 |
 | liquid_lipstick | 2.41 | 6.57 | 34 |
 
 Median ΔE is at or near the just-noticeable-difference threshold (~2) for every product type. This includes bullets and liquids, where clustering scored very poorly, ΔE 16–26. The mean–median gap (especially for liquids) is driven by a small number of outliers, which I investigated directly.
@@ -197,12 +196,12 @@ Accuracy on the original validation images was already near-ceiling, so the gain
 
 ## Choosing between segmentation and clustering
 
-Head-to-head on the same labeled images, we that that, for swatches, k-means peak extraction beats segmentation. Swatches are entirely the target color, so a U-Net adds inference cost and failure surface without adding accuracy. However, for bullet and liquid lipstick and for closed containers that have the color visible through a transparent window, segmentation outperforms k-means substantially. Clustering predicted colors that were very different to the ground truth (16–26 mean ΔE), while segmentation brings the error down close to the limit of what the human eye can tell apart (ΔE 2–6.6):
+Head-to-head on the same labeled images, we that that, for swatches, k-means peak extraction beats segmentation. Swatches are entirely the target color, so a U-Net adds inference cost and failure surface without adding accuracy. However, for bullet and liquid lipstick and for closed containers that have the color visible through a transparent window, segmentation outperforms k-means substantially. Clustering predicted colors that were very different to the ground truth (16–26 mean ΔE), while segmentation brings the error down close to the limit of what the human eye can tell apart (ΔE 2–4.6):
 
 | Image type | Clustering (k-means) | Segmentation (U-Net) | Winner |
 |---|---|---|---|
 | swatch | **2.16 mean ΔE** | 3.15 mean ΔE | Clustering |
-| bullet / liquid / closed | 16–26 mean ΔE | ~2–6.6 mean ΔE| Segmentation |
+| bullet / liquid / closed | 16–26 mean ΔE | ~2–4.6 mean ΔE| Segmentation |
 
 
 **Production routing:** classify with Stage 1, then extract with k-means for swatches, U-Net segmentation for bullet, liquid, and `closed`, and decline extraction for `color_not_shown`. Routing each type to the cheapest strategy that wins makes the system both more accurate and easier to maintain — no masks or segmentation model needed for the largest image category.
@@ -237,26 +236,26 @@ flowchart TD
 The hybrid pipeline runs over the full catalog of **9,167 product images** with batched ResNet-18 inference for routing, then type-specific extraction:
 
 - Every image routed to a color-bearing class produces a color. Robustness comes from a small fallback: if a U-Net mask is empty at threshold 0.5, the pipeline retries at 0.3 rather than dropping the product.
-- Images classified `color_not_shown` are **explicitly declined** — no color is invented from sealed packaging. If the product has another usable image, the pipeline uses it (preferring `swatch` over container shots); otherwise the product is excluded from the color index.
+
+- Images classified `color_not_shown` are **explicitly declined**. 
+
 - Output: a CIELAB coordinate (plus hex) for every indexed product, joined back to brand/product/shade metadata.
 
-For the app's color-wheel navigation, the full catalog is clustered in LAB space with a **Gaussian Mixture Model**, with the number of components selected by **BIC**. GMM was chosen over k-means deliberately: its full-covariance ellipsoidal clusters fit the highly uneven shape of the lipstick color distribution — a dense nude/pink/red region next to sparse purples and browns — where k-means' spherical clusters would over-split the dense region and under-serve the sparse one. Queries (color wheel, photo upload, or hex) return products ranked by ΔE distance to the query color.
+For the app's color-wheel navigation, the full catalog is clustered in LAB space with a **Gaussian Mixture Model**, with the number of components selected by **BIC**. GMM was chosen over k-means deliberately: its full-covariance ellipsoidal clusters fit the highly uneven shape of the lipstick color distribution. Particularly, the dense nude/pink/red region next to sparse purples and browns would have been over-split with k-means' spherical clusters. Queries (color wheel, photo upload, or hex) return products ranked by ΔE distance to the query color.
 
 ---
 
 ## Learnings
 
-**A class you exclude at training time doesn't disappear in production — it gets misrouted.** Early versions of the pipeline dropped `color_not_shown` images from classifier training, on the reasoning that they had no color to extract. But the production classifier still had to put those images *somewhere*, so it forced them into a color-bearing class and the pipeline extracted a confident, meaningless color from sealed packaging. Error analysis on the highest-ΔE outliers surfaced the pattern; the fix was to promote `color_not_shown` to a first-class label with an explicit no-extraction branch. The general lesson: a classifier's label set must cover everything it will *see*, not just everything you want to *keep* — and "decline to answer" is a prediction worth training for.
-
 **Localization beats color statistics.** Clustering methods know *what* colors are in an image but not *where* the product is. The single biggest accuracy jump in the project (ΔE 16–26 → ~2) came not from a better color algorithm but from segmenting the right pixels first.
 
-**With small data, transfer what you have before training longer.** Warm-starting the `closed` segmenter from the bullet/liquid segmenter's weights (~27 training images) helped far more than any optimization tweak — while adding an LR scheduler and more epochs to the main segmenter actually *hurt* validation IoU. When the bottleneck is data, the answer is better priors and augmentation, not longer training.
+**With small data, transfer what you have before training longer.** Warm-starting the `closed` segmenter from the bullet/liquid segmenter's weights (~27 training images) helped far more than any optimization tweak, while adding an LR scheduler and more epochs to the main segmenter actually *hurt* validation IoU. When the bottleneck is data, the answer is better priors and augmentation, not longer training.
 
-**Active learning pays off most when annotation is the bottleneck.** Hand-drawing segmentation masks and cropping ground-truth colors is slow, so annotating images at random is expensive relative to what each label teaches the model. Letting the classifier's own uncertainty choose what to annotate next inverted that: low-confidence predictions pointed straight at the failure mode (windowed-container images split between `closed` and `bullet`/`liquid`), and fixing them required only cheap type-label corrections — no new masks. Forty-eight targeted labels improved generalization on exactly the category the pipeline was misrouting, a result random sampling would have needed far more annotation time to match.
+**Active learning pays off most when annotation is the bottleneck.** Hand-drawing segmentation masks and cropping ground-truth colors is slow, so annotating images is expensive relative to what each label teaches the model. Letting the classifier's own uncertainty choose what to annotate next inverted that: low-confidence predictions pointed straight at the failure mode (windowed-container images split between `closed` and `bullet`/`liquid`), and fixing them required only cheap type-label corrections — no new masks. Forty-eight targeted labels improved generalization on exactly the category the pipeline was misrouting, a result random sampling would have needed far more annotation time to match.
 
-**The simplest method that wins should ship.** The deep pipeline lost to plain k-means on swatch images. Keeping k-means for that route made the production system both cheaper and more accurate than committing to deep learning everywhere.
+**The simplest method that wins should ship.** The deep pipeline lost to plain k-means on *swatch images*. Keeping k-means for that route made the production system both cheaper and more accurate than committing to deep learning everywhere. Swatches are the most common image at around 30%.
 
-**Evaluation is only as good as the ground truth you design.** Because no benchmark existed, every modeling claim in this project rests on the stratified, hand-labeled CIELAB sample built first. Investing in that foundation early is what made the method comparison — and the bug discovery above — possible at all.
+**Evaluation is only as good as the ground truth you design.** Because no benchmark existed, every modeling claim in this project rests on the stratified, hand-labeled CIELAB sample built first. 
 
 ## Citation
 
