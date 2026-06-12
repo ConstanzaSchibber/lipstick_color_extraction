@@ -96,7 +96,10 @@ No benchmark dataset exists for "the true color of this lipstick product image,"
 
 **Labeling.** For each sampled image I manually cropped the region showing the true product color and extracted the mean CIELAB value as the ground-truth label (209 of 222 images were croppable). Mean pairwise ΔE across the labeled sample is 30.5, confirming the ground truth spans the color space rather than clustering in a few popular shades.
 
-![alt text](img/ground_truth_coverage.png)
+<div align="center">
+  <img src="img/ground_truth_coverage.png" width="500">
+</div>
+
 
 **Image-type annotation.** In Label Studio, I annotated each image's presentation type into five classes: `swatch`, `bullet`, `liquid`, `closed` (containers where the product color is visible through a window or transparent packaging), and `color_not_shown` (fully closed packaging with no recoverable color). I also hand-drew segmentation masks over the color region. All five types are kept as first-class classifier labels. The label `color_not_shown`, when there is no color to extract from these images is kept so that the classifier is able to *recognize* them and thus, the production pipeline can decline extraction instead of extracting an incorrect color. These annotations train both the classifier and the segmenters.
 
@@ -110,7 +113,9 @@ No benchmark dataset exists for "the true color of this lipstick product image,"
   </tr>
 </table>
 
-<img src="img/annotation_label_distribution.png" width="400">
+<div align="center">
+  <img src="img/annotation_label_distribution.png" width="400">
+</div>
 
 ---
 
