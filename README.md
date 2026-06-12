@@ -169,6 +169,8 @@ A fine-tuned ResNet-18 (ImageNet-pretrained) classifies each image as `swatch`, 
 
 This classifier is the router for everything downstream: both extraction strategies, the production pipeline, and the active-learning loop all depend on it. Images classified `color_not_shown` exit here, because there is no color to extract.
 
+> **Note:** The 97% figure is the first-pass classifier. Downstream error analysis later revealed that most end-to-end failures were routing errors from this stage, which an active-learning iteration fixed. See [Error Analysis → Active Learning](#error-analysis--active-learning). Final validation accuracy: 98%.
+
 
 ---
 ## Stage 2, Strategy 1: K-Means Clustering
@@ -188,11 +190,22 @@ The product color should be a dominant color cluster in the image. A single glob
 
 ### Color-region segmentation
 
+Two U-Nets (ResNet-18 encoder, ImageNet-pretrained, 256×256 input → binary mask) trained on the hand-drawn Label Studio masks.
+
+**Why U-Net + ResNet-18 encoder.** Same small-data logic as Stage 1, applied to segmentation:
+- U-Net is the standard architecture for segmentation with few labels. Specifically, it skip connections carry fine spatial detail from encoder to decoder, which matters for tight masks on thin regions like a lipstick bullet.
+- The ResNet-18 encoder is ImageNet-pretrained. Given the small number of annotated images, only the decoder and mask-specific behavior have to be learned from scratch.
+- Reusing the same backbone as Stage 1 keeps the pipeline consistent and made the Segmenter A → Segmenter B warm-start straightforward, since both share an architecture.
+
+The two U-Nets trained on the hand-drawn Label Studio masks:
+
 Two U-Nets (ResNet-18 encoder, ImageNet-pretrained, 256×256 input → binary mask) trained on the hand-drawn Label Studio masks:
 
-- **Segmenter A** (`bullet` + `liquid`): finetuned on 74 images, evaluated with IoU. A `ReduceLROnPlateau` schedule with longer training *reduced* validation IoU — the bottleneck is dataset size, not optimization, so the simple 20-epoch fixed-LR run was kept.
+- **Segmenter A** (`bullet` + `liquid`, 74 training images): 20 epochs at a fixed LR, evaluated with IoU. A longer `ReduceLROnPlateau` run *reduced* validation IoU (because the bottleneck is dataset size) so the simpler run was kept.
 
-- **Segmenter B** (`closed` — containers with the product visible through a window or transparent packaging): with only ~27 training images, training from ImageNet weights produced loose masks. Two changes fixed it: **warm-starting from Segmenter A's weights** (the encoder and decoder already know what a lipstick color-region mask looks like) and **synchronized augmentation** (identical flips and ±15° rotations applied to image and mask). After these, predicted masks align tightly with ground truth.
+- **Segmenter B** (`closed` — product visible through a window or transparent packaging, ~27 training images): training from ImageNet weights produced loose masks. Two fixes: warm-starting from Segmenter A's weights, since it already knows what a lipstick color-region mask looks like, and synchronized augmentation (identical flips and ±15° rotations applied to image and mask). With these, predicted masks align tightly with ground truth.
+
+See randomly selected image-mask-prediction combinations:
 
 <table>
   <tr>
@@ -206,16 +219,9 @@ Two U-Nets (ResNet-18 encoder, ImageNet-pretrained, 256×256 input → binary ma
 
 After identifying the area of the image that has the color we need, we have to extract it. 
 
-I compared five extraction strategies (mean, median, dominant cluster, and others) on the same masked pixels, scored by ΔE with respect to the ground truth (out of sample):
+I compared five extraction strategies (mean, median, dominant cluster, and others) on the same masked pixels, scored by ΔE with respect to the ground truth (out of sample). 
 
-| Type | Median ΔE | Mean ΔE | n |
-|---|---|---|---|
-| swatch | 1.12 | 3.15 | 84 |
-| bullet_lipstick | 1.96 | 3.87 | 53 |
-| closed | 2.03 | 2.22 | 24 |
-| liquid_lipstick | 2.41 | 6.57 | 34 |
-
-Median ΔE is at or near the just-noticeable-difference threshold (~2) for every product type. This includes bullets and liquids, where clustering scored very poorly, ΔE 16–26. The mean–median gap (especially for liquids) is driven by a small number of outliers, which I investigated directly.
+Median ΔE is at or near the just-noticeable-difference threshold (~2) for every product type, so that was the method used.
 
 
 ---
@@ -229,24 +235,33 @@ I closed the loop with a lightweight active-learning cycle:
 
 1. **Surface:** score classifier confidence on images outside the training set; low-confidence predictions (typically split between `bullet`/`liquid` and `closed`) flag the failure mode. 
 
-2. **Correct:** export those images as an annotation queue, review, and fix only the type label — no new masks required.
+2. **Correct:** export those images as an annotation queue, review, and fix only the type label. New masks were not required.
 
 3. **Retrain:** merge 48 corrected images (mostly `closed`) into the training set, recompute class weights, retrain Stage 1.
 
-Accuracy on the original validation images was already near-ceiling, so the gain shows up where it matters: **generalization to unseen windowed-container images** — the exact category the production pipeline was misrouting. Expanded validation accuracy: 98%.
+Accuracy on the original validation images was already near-ceiling, so the gain shows up where it matters: **generalization to unseen windowed-container images** which is the exact category the production pipeline was misrouting. Expanded validation accuracy: 98%.
 
 ---
 
-## Evaluation: Clustering vs. Segmentation
+## Evaluation & Production Routing: Clustering vs. Segmentation
 
-Head-to-head on the same labeled images, we see that, for swatches, k-means peak extraction beats segmentation. Swatches are entirely the target color, so a U-Net adds inference cost and failure surface without adding accuracy. However, for bullet and liquid lipstick and for closed containers that have the color visible through a transparent window, segmentation outperforms k-means substantially. Clustering predicted colors that were very different to the ground truth (16–26 mean ΔE), while segmentation brings the error down close to the limit of what the human eye can tell apart (ΔE 2–4.6):
+Stage 1 classifies each image, then routes it to the cheapest extraction method that wins for its type:
 
-| Image type | Clustering (k-means) | Segmentation (U-Net) | Winner |
+- `swatch` → k-means peak color
+- `bullet`, `liquid` → U-Net Segmenter A + median
+- `closed` → U-Net Segmenter B + dominant cluster
+- `color_not_shown` → no extraction
+
+Swatches are entirely the target color, so k-means is accurate on its own. No masks or segmentation model needed for the largest image category (~30%). For everything else the color is a small region surrounded by packaging, where k-means fails badly but segmentation gets close to the just-noticeable-difference threshold:
+
+| Image type | k-means | Alternative | Production choice |
 |---|---|---|---|
-| swatch | **2.16 mean ΔE** | 3.15 mean ΔE | Clustering |
-| bullet / liquid / closed | 16–26 mean ΔE | ~2–4.6 mean ΔE| Segmentation |
+| swatch | **2.16** | 3.15 (threshold + median) | k-means |
+| bullet / liquid / closed | 16–26 | **2–4.6** (U-Net) | Segmentation |
 
-Below are randomly selected images comparing the color extracted by clustering (A pred, on the left) and segmentation (C pred, on the right), against ground truth (color at the bottom).
+*Mean ΔE vs ground truth on the same labeled images; bold = method used in production.*
+
+Randomly selected examples showing predictions from clustering (A pred, left) and segmentation (C pred, right) against ground truth (bottom):
 
 <table>
   <tr>
@@ -258,9 +273,6 @@ Below are randomly selected images comparing the color extracted by clustering (
     <td width="50%" align="center"><b>Closed</b><br><img src="img/result_comparison3.png" width="100%"></td>
   </tr>
 </table>
-
-
-**Production routing:** classify with Stage 1, then extract with k-means for swatches, U-Net segmentation for bullet, liquid, and `closed`, and decline extraction for `color_not_shown`. Routing each type to the cheapest strategy that wins makes the system both more accurate and easier to maintain, because no masks or segmentation model needed for the largest image category (~30%).
 
 ---
 
