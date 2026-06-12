@@ -132,7 +132,13 @@ No benchmark dataset exists for "the true color of this lipstick product image,"
 </div>
 
 
-**Image annotation.** I built this annotation in Label Studio to train the project's PyTorch classification and segmentation models. For the classifier, I labeled each image's presentation type into five classes: `swatch`, `bullet`, `liquid`, `closed` (containers where the product color is visible through a window or transparent packaging), and `color_not_shown` (fully closed packaging with no recoverable color). For the segmenters, I hand-drew masks over the color region. All five types are kept as first-class classifier labels, including `color_not_shown`: even though those images have no extractable color, keeping the label lets the classifier *recognize* them so the production pipeline can decline extraction instead of returning an incorrect color. Both label types were produced together in one annotation pass. The annotated set is the ground-truth sample above, expanded by an active learning step that surfaced additional images worth labeling.
+**Image annotation.** I built this annotation in Label Studio to train the project's PyTorch classification and segmentation models. For the classifier, I labeled each image's presentation type into five classes: `swatch`, `bullet`, `liquid`, `closed` (containers where the product color is visible through a window or transparent packaging), and `color_not_shown` (fully closed packaging with no recoverable color). For the segmenters, I hand-drew masks over the color region. All five types are kept as first-class classifier labels. This includes `color_not_shown` so that the production pipeline can decline extraction instead of returning an incorrect color. Both label types were produced together in one annotation pass. The annotated set is the ground-truth sample above, expanded by an active learning step that surfaced additional images worth labeling.
+
+---
+
+## Stage 1: Image-Type Classifier
+
+A fine-tuned ResNet-18 (ImageNet-pretrained) classifies each image as `swatch`, `bullet_lipstick`, `liquid_lipstick`, `closed`, or `color_not_shown`.
 
 <table>
   <tr>
@@ -148,15 +154,21 @@ No benchmark dataset exists for "the true color of this lipstick product image,"
   <img src="img/annotation_label_distribution.png" width="400">
 </div>
 
----
+**Why ResNet-18 + transfer learning.** The labeled set is small (~200 images), which rules out training from scratch. ResNet-18 also has several advantages:
+- It's small, so it's forced to learn general features; a larger model would simply memorize 200 images and fail on unseen ones.
+- The task is coarse rather than fine-grained, so ImageNet features transfer almost directly.
+- It fine-tunes in minutes on a laptop GPU.
 
-## Stage 1: Product-Type Classifier
+**Why two-phase fine-tuning.** The classification head is randomly initialized, so its early gradients are large and noisy. A single-phase full fine-tune would corrupt the pretrained features before the head stabilizes. So:
+- Phase 1 (5 epochs, backbone frozen): the head converges against fixed pretrained features.
+- Phase 2 (15 epochs, full network, lower learning rate): the backbone adapts gently to product photography.
 
-ResNet-18 (ImageNet-pretrained) fine-tuned to classify images into `swatch`, `bullet_lipstick`, `liquid_lipstick`, `closed`, and `color_not_shown`, in two phases: 5 epochs training only the head with the backbone frozen, then 15 epochs of full fine-tuning at a lower learning rate. Class imbalance (swatches are by far the most common annotation; `closed` and `color_not_shown` the rarest) is handled with weighted cross-entropy loss. 
+**Why weighted cross-entropy.** Swatches outnumber the rarest classes ~3×, so an unweighted loss would let the model buy accuracy by over-predicting `swatch`. Inverse-frequency weights penalize errors on rare classes proportionally more.
 
 **Validation accuracy: 97%.**
 
 This classifier is the router for everything downstream: both extraction strategies, the production pipeline, and the active-learning loop all depend on it. Images classified `color_not_shown` exit here, because there is no color to extract.
+
 
 ---
 ## Stage 2, Strategy 1: K-Means Clustering
