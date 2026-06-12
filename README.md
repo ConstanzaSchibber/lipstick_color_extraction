@@ -110,8 +110,7 @@ No benchmark dataset exists for "the true color of this lipstick product image,"
   </tr>
 </table>
 
-
-![alt text](img/annotation_label_distribution.png)
+<img src="img/annotation_label_distribution.png" width="400">
 
 ---
 
@@ -146,11 +145,15 @@ Two U-Nets (ResNet-18 encoder, ImageNet-pretrained, 256×256 input → binary ma
 
 - **Segmenter A** (`bullet` + `liquid`): finetuned on 74 images, evaluated with IoU. A `ReduceLROnPlateau` schedule with longer training *reduced* validation IoU — the bottleneck is dataset size, not optimization, so the simple 20-epoch fixed-LR run was kept.
 
-<img src="img/segmentation_bullet_liquid.png" width="400">
-
 - **Segmenter B** (`closed` — containers with the product visible through a window or transparent packaging): with only ~27 training images, training from ImageNet weights produced loose masks. Two changes fixed it: **warm-starting from Segmenter A's weights** (the encoder and decoder already know what a lipstick color-region mask looks like) and **synchronized augmentation** (identical flips and ±15° rotations applied to image and mask). After these, predicted masks align tightly with ground truth.
 
-<img src="img/segmentation_closed.png" width="400">
+<table>
+  <tr>
+    <td><img src="img/segmentation_bullet_liquid.png" width="400"></td>
+    <td><img src="img/segmentation_closed.png" width="400"></td>
+  </tr>
+</table>
+
 
 ### Color extraction from the masked region
 
