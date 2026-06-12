@@ -21,7 +21,7 @@
 ---
 
 *Table of Contents*
-- [The Problem](#the-problem)
+- [Overview: Problem and Solution](#overview-problem-and-solution)
 - [Methods Overview](#methods-overview)
 - [Human Annotation & Ground Truth](#human-annotation--ground-truth)
 - [Stage 1: Product-Type Classifier](#stage-1-product-type-classifier)
@@ -33,7 +33,7 @@
 - [Learnings](#learnings)
 - [Citation](#citation)
 
-## The Problem
+## Overview: Problem and Solution
 
 Lipsticks come in every color and shade imaginable, but finding a specific color or shade online is surprisingly difficult.
 
