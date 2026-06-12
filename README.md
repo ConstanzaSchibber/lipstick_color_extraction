@@ -57,12 +57,14 @@ Second, retailer search and filtering tools are inadequate. Filtering by "Pink" 
 
 Some retailers like Sephora and Ulta offer limited color filters, most likely based on metadata supplied by brands, that collapse the entire spectrum into a handful of broad buckets. Others, like Amazon and Google Shopping, offer no color filters at all, forcing users to search by name. While "pink" or "red" might feel obvious, shades like mauve, dusty rose, or terracotta are ambiguous. And there's no guarantee the search engine returns useful results.
 
+<div align="center">
 <table>
   <tr>
-    <td align="center" width="50%"><b>Sephora</b><br><img src="img/sephorafilter.png" height="150"></td>
-    <td align="center" width="50%"><b>Ulta</b><br><img src="img/ultafilter.png" height="150"></td>
+    <td align="center"><b>Sephora</b><br><img src="img/sephorafilter.png" height="150"></td>
+    <td align="center"><b>Ulta</b><br><img src="img/ultafilter.png" height="150"></td>
   </tr>
 </table>
+</div>
 
 Given these limitations, it's not only hard to discover and search for lipsticks, but comparing shades across brands or finding a cheaper alternative to a known favorite is very time consuming.
 
