@@ -68,8 +68,6 @@ Given these limitations, it's not only hard to discover and search for lipsticks
 
 By mapping lipstick colors to the [CIELAB color space](https://lipstickbycolor.github.io/color-guide.html), I create a standardized, perceptually uniform representation that enables accurate shade comparison across brands. CIELAB represents color in three dimensions: L (lightness), a (green to red), and b (blue to yellow). Equal numerical differences in CIELAB correspond to roughly equal perceived differences to the human eye. This is the same standard cosmetics manufacturers use internally for color quality control, and it makes the matching problem measurable: the distance between two colors (Delta E) directly quantifies how different they look.
 
-**Search by color wheel** — browse the spectrum and drill into a shade:
-
 <table>
   <tr>
     <td width="50%"><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/flow-wheel-a.png" width="100%"></td>
@@ -79,18 +77,13 @@ By mapping lipstick colors to the [CIELAB color space](https://lipstickbycolor.g
     <td width="50%"><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/flow-wheel-c.png" width="100%"></td>
     <td width="50%"><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/flow-wheel-d.png" width="100%"></td>
   </tr>
-</table>
-
-**Search by photo** — upload any image to match its color against the catalog:
-
-<table>
   <tr>
     <td width="50%"><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/flow-photo-a.png" width="100%"></td>
     <td width="50%"><img src="https://raw.githubusercontent.com/LipstickByColor/LipstickByColor.github.io/19fa96b761e73191b184296ba09004a47e716268/assets/flow-photo-b.png" width="100%"></td>
   </tr>
 </table>
 
-**Search by hex** — paste any hex code for precise shade matching or search color space to find hex code. Products can be saved to a **wishlist** for easy comparison across shades and brands.
+**Search by color wheel** — browse the spectrum and drill into a shade. **Search by photo** — upload any image to match its dominant color against the catalog. **Search by hex** — paste any hex code for precise shade matching. Products can be saved to a **wishlist** for easy comparison across shades and brands.
 
 ---
 
