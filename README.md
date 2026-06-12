@@ -6,9 +6,9 @@
 
 - **Data:** 9,000+ product images and metadata collected from makeup retailers via API and web scraping; hand-labeled CIELAB ground truth built from a stratified sample for training and evaluation.
 
-- **Methods:** A hybrid two-stage pipeline: a fine-tuned ResNet-18 classifies each image by presentation type (swatch, bullet, liquid, closed, color not shown), which routes it to the best extraction strategy — k-means for swatches, U-Net segmentation + median LAB for product shots, and an explicit no-extraction branch when no color is visible. Evaluated against ground truth with Delta E CIE 2000 (median ΔE ≈ 1–2.4 per type, at the threshold of human perception); a Gaussian Mixture Model clusters the catalog for color-based browsing.
+- **Methods:** A hybrid two-stage pipeline: a fine-tuned ResNet-18 classifies each image by presentation type (swatch, bullet, liquid, closed, color not shown), which routes it to the best extraction strategy: k-means for swatches, U-Net segmentation + median LAB for product shots, and an explicit no-extraction branch when no color is visible. Evaluated against ground truth with Delta E CIE 2000 (median ΔE ≈ 1–2.4 per type, at the threshold of human perception); a Gaussian Mixture Model clusters the catalog for color-based browsing.
 
-- **App:** Web interface for searching 9,000+ lip products by color — color wheel, photo upload, or hex input.
+- **App:** Web interface for searching 9,000+ lip products by color: color wheel, photo upload, or hex input.
 
 - **Tech stack:** Python, PyTorch, Jupyter, OpenCV, scikit-learn, Label Studio.
 
@@ -123,16 +123,16 @@ Both are scored against human-annotated ground truth using **Delta E CIE 2000 (�
 
 No benchmark dataset exists for "the true color of this lipstick product image," so I designed one. 
 
-**Sampling.** Raw retailer metadata contained 200+ inconsistent `parent_color` values, which I consolidated into 18 color groups using a keyword-based, LLM-assisted taxonomy. I calculated the required sample size with Cochran's formula (n=188, rounded to 200), using the CIELAB L* standard deviation from a prior lipstick color study as the variance estimate, then drew 222 images via stratified proportional sampling with a minimum floor of 5 images per color group to guarantee coverage of rare shades (deep purples, true oranges) that proportional sampling alone would miss.
+**Sampling.** To size the sample, I used Cochran's formula with the CIELAB L* standard deviation from a prior analysis I did as the variance estimate. But I also wanted the sample to span the full color range rather than over-indexing on common shades, which meant stratifying by color. That required usable color labels, so I consolidated the 200+ inconsistent `parent_color` values from the raw retailer metadata into 18 color groups using a keyword-based, [LLM-assisted taxonomy](notebooks/03_annotation_sampling.ipynb). I then drew with stratified proportional sampling, adding a minimum floor of 5 images per group so rare shades like deep purples and true oranges wouldn't get skipped, bringing the final count to 222 images.
 
-**Labeling.** For each sampled image I manually cropped the region showing the true product color and extracted the mean CIELAB value as the ground-truth label (209 of 222 images were croppable). Mean pairwise ΔE across the labeled sample is 30.5, confirming the ground truth spans the color space rather than clustering in a few popular shades.
+**Labeling.** For each sampled image I manually cropped the region showing the true product color and extracted the mean CIELAB value as the ground-truth label (209 of 222 images were croppable). Mean pairwise ΔE across the labeled sample is 30.5, confirming the ground truth spans the color space rather than clustering in a few popular shades. See below the ground truth swatches across parent color taxonomy.
 
 <div align="center">
   <img src="img/ground_truth_coverage.png" width="500">
 </div>
 
 
-**Image-type annotation.** In Label Studio, I annotated each image's presentation type into five classes: `swatch`, `bullet`, `liquid`, `closed` (containers where the product color is visible through a window or transparent packaging), and `color_not_shown` (fully closed packaging with no recoverable color). I also hand-drew segmentation masks over the color region. All five types are kept as first-class classifier labels. The label `color_not_shown`, when there is no color to extract from these images is kept so that the classifier is able to *recognize* them and thus, the production pipeline can decline extraction instead of extracting an incorrect color. These annotations train both the classifier and the segmenters.
+**Image annotation.** I built this annotation in Label Studio to train the project's PyTorch classification and segmentation models. For the classifier, I labeled each image's presentation type into five classes: `swatch`, `bullet`, `liquid`, `closed` (containers where the product color is visible through a window or transparent packaging), and `color_not_shown` (fully closed packaging with no recoverable color). For the segmenters, I hand-drew masks over the color region. All five types are kept as first-class classifier labels, including `color_not_shown`: even though those images have no extractable color, keeping the label lets the classifier *recognize* them so the production pipeline can decline extraction instead of returning an incorrect color. Both label types were produced together in one annotation pass. The annotated set is the ground-truth sample above, expanded by an active learning step that surfaced additional images worth labeling.
 
 <table>
   <tr>
