@@ -229,8 +229,8 @@ flowchart TD
     H --> I["Search by ΔE distance<br/>color wheel · photo upload · hex"]
 
     style F stroke-dasharray: 5 5
-    style G fill:#f9d5e5
-    style H fill:#e8e8e8
+    style G fill:#f9d5e5,color:#1a1a1a,stroke:#c2185b
+    style H fill:#e8e8e8,color:#1a1a1a,stroke:#888
 ```
 
 The hybrid pipeline runs over the full catalog of **9,167 product images** with batched ResNet-18 inference for routing, then type-specific extraction:
