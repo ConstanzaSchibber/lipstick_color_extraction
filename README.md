@@ -232,12 +232,21 @@ Head-to-head on the same labeled images, we see that, for swatches, k-means peak
 | swatch | **2.16 mean ΔE** | 3.15 mean ΔE | Clustering |
 | bullet / liquid / closed | 16–26 mean ΔE | ~2–4.6 mean ΔE| Segmentation |
 
+Below are randomly selected images comparing the color extracted by clustering (model A) and segmentation (model C), against ground truth.
 
-**Production routing:** classify with Stage 1, then extract with k-means for swatches, U-Net segmentation for bullet, liquid, and `closed`, and decline extraction for `color_not_shown`. Routing each type to the cheapest strategy that wins makes the system both more accurate and easier to maintain — no masks or segmentation model needed for the largest image category.
+<table>
+  <tr>
+    <td width="50%" align="center"><b>Swatch</b><br><img src="img/result_comparison4.png" width="100%"></td>
+    <td width="50%" align="center"><b>Bullet</b><br><img src="img/result_comparison.png" width="100%"></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><b>Liquid</b><br><img src="img/result_comparison2.png" width="100%"></td>
+    <td width="50%" align="center"><b>Closed</b><br><img src="img/result_comparison3.png" width="100%"></td>
+  </tr>
+</table>
 
 
-
-
+**Production routing:** classify with Stage 1, then extract with k-means for swatches, U-Net segmentation for bullet, liquid, and `closed`, and decline extraction for `color_not_shown`. Routing each type to the cheapest strategy that wins makes the system both more accurate and easier to maintain, because no masks or segmentation model needed for the largest image category (~30%).
 
 ---
 
