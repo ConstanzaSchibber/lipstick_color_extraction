@@ -66,6 +66,8 @@ Some retailers like Sephora and Ulta offer limited color filters, most likely ba
 
 Given these limitations, it's not only hard to discover and search for lipsticks, but comparing shades across brands or finding a cheaper alternative to a known favorite is very time consuming.
 
+### Web App
+
 By mapping lipstick colors to the [CIELAB color space](https://lipstickbycolor.github.io/color-guide.html), I create a standardized, perceptually uniform representation that enables accurate shade comparison across brands. CIELAB represents color in three dimensions: L (lightness), a (green to red), and b (blue to yellow). Equal numerical differences in CIELAB correspond to roughly equal perceived differences to the human eye. This is the same standard cosmetics manufacturers use internally for color quality control, and it makes the matching problem measurable: the distance between two colors (Delta E) directly quantifies how different they look.
 
 The app allows for multiple ways to search for lip products by color: **Search by color wheel**, **Search by photo**, **Search by hex.** Products can be saved to a **wishlist** for easy comparison across shades and brands, and as a starting point of future searches. Results are ranked by Delta E. 
@@ -90,6 +92,7 @@ Below are some illustrations from the app:
   </tr>
 </table>
 
+> **Test the app ** [lipstickbycolor.github.io](https://lipstickbycolor.github.io/).  
 
 ---
 
