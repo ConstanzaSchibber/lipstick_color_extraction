@@ -14,9 +14,13 @@
 
 ---
 
-> **Just want to see the app?** Try it at [lipstickbycolor.github.io](https://lipstickbycolor.github.io/). Source code at [github.com/LipstickByColor](https://github.com/LipstickByColor).
+> **App** Try it at [lipstickbycolor.github.io](https://lipstickbycolor.github.io/). Source code at [github.com/LipstickByColor](https://github.com/LipstickByColor).
 
-> **Just want to read a high-level overview?** [About](https://lipstickbycolor.github.io/about.html).
+---
+
+In what follows, I provide an in-depth overview of the project. 
+
+> **For a high-level overview see [here](https://lipstickbycolor.github.io/about.html)**
 
 ---
 
