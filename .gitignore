@@ -51,6 +51,8 @@ notebooks/portfolio_stats.ipynb
 # Old notebooks
 old_notebooks/
 notebooks/3C_LLM.ipynb
+notebooks/10_training_set_strategy.ipynb
+notebooks/11_validation_test_set_strategy.ipynb
 
 # OS
 .DS_Store
