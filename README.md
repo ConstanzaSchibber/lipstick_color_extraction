@@ -4,7 +4,7 @@
 
 - **Goal:** Identify the color of lipstick products in CIELAB color space to enable comparison by standardized shade rather than by the creative names brands assign.
 
-- **Data:** 9,000+ product images and metadata collected from makeup retailers via API and web scraping; hand-labeled CIELAB ground truth built from a stratified sample for training and evaluation.
+- **Data:** 9,000+ product images and metadata collected from makeup retailers via API and web scraping; hand-labeled CIELAB annotations built separately for training and out-of-sample evaluation.
 
 - **Methods:** A hybrid two-stage pipeline: a fine-tuned ResNet-18 classifies each image by presentation type (swatch, bullet, liquid, closed, color not shown), which routes it to the best extraction strategy: k-means for swatches, U-Net segmentation + median LAB for product shots, and an explicit no-extraction branch when no color is visible. Evaluated against ground truth with Delta E CIE 2000 (median ΔE ≈ 1–2.4 per type, at the threshold of human perception); a Gaussian Mixture Model clusters the catalog for color-based browsing.
 
@@ -27,7 +27,7 @@ In what follows, I provide an in-depth overview of the project.
 *Table of Contents*
 - [Overview: Problem and Solution](#overview-problem-and-solution)
 - [Methods Overview](#methods-overview)
-- [Human Annotation & Ground Truth](#human-annotation--ground-truth)
+- [Data Annotation: Training, Validation & Test Sets](#data-annotation-training-validation--test-sets)
 - [Stage 1: Product-Type Classifier](#stage-1-product-type-classifier)
 - [Stage 2, Strategy 1: K-Means Clustering](#stage-2-strategy-1-k-means-clustering)
 - [Stage 2, Strategy 2: U-Net Segmentation + Robust Extraction](#stage-2-strategy-2-u-net-segmentation--robust-extraction)
@@ -123,24 +123,35 @@ Both are scored against human-annotated ground truth using **Delta E CIE 2000 (�
 
 ---
 
-## Human Annotation & Ground Truth
+## Data Annotation: Training, Validation & Test Sets
 
-No benchmark dataset exists for "the true color of this lipstick product image," so I designed one. 
+No benchmark dataset exists for evaluating lipstick-image color extraction, presentation-type classification, and color-region segmentation, so I built one. The annotation set has to do three different jobs: train the models, select among them, and report performance. These  jobs call for different sampling, so I designed them separately instead of splitting one dataset at random.
 
-**Sampling.** To size the sample, I used Cochran's formula with the CIELAB L* standard deviation from a prior analysis I did as the variance estimate. But I also wanted the sample to span the full color range rather than over-indexing on common shades, which meant segmenting by color. That required usable color labels, so I consolidated the 200+ inconsistent `parent_color` values from the raw retailer metadata into 18 color groups using a keyword-based, [LLM-assisted taxonomy](notebooks/03_annotation_sampling.ipynb). I then drew with stratified proportional sampling, adding a minimum floor of 5 images per group so rare shades like deep purples and true oranges wouldn't get skipped, bringing the final count to 222 images.
+The sampling constraint. The models consume images, but the only signal available for deciding which images to annotate is retailer metadata which does not provide much information on image types and provides inconsistent information across brands on other issues (e.g. color family, type of lipstick container). 
 
-**Labeling.** For each sampled image I manually cropped the region showing the true product color and extracted the mean CIELAB value as the ground-truth label (209 of 222 images were croppable). Mean pairwise ΔE across the labeled sample is 30.5, confirming the ground truth spans the color space rather than clustering in a few popular shades. See below the ground truth swatches across parent color taxonomy.
+Different sets, different objectives. A training set needs to be informative: cover every region of the input space the model has to handle, even regions that are rare in the catalog. A validation and test set needs to be representative: approximate the production distribution closely enough that reported metrics reflect expected real-world performance while containing enough examples of important subgroups to support meaningful per-class evaluation. That’s why I follow a different strategy for creating the training set and the validation and test sets.
 
-<div align="center">
-  <img src="img/ground_truth_coverage.png" width="500">
-</div>
+### Training Set Strategy
 
+Images are drawn three ways, each closing a different coverage gap:
 
-**Image annotation.** I built this annotation in Label Studio to train the project's PyTorch classification and segmentation models. For the classifier, I labeled each image's presentation type into five classes: `swatch`, `bullet`, `liquid`, `closed` (containers where the product color is visible through a window or transparent packaging), and `color_not_shown` (fully closed packaging with no recoverable color). For the segmenters, I hand-drew masks over the color region. All five types are kept as first-class classifier labels. This includes `color_not_shown` so that the production pipeline can decline extraction instead of returning an incorrect color. Both label types were produced together in one annotation pass. The annotated set is the ground-truth sample above, but with an oversample of `closed` container images — the smallest class in the natural distribution —, sourced by targeting brands and product lines known for that packaging style.
+* Color taxonomy:  I consolidated the 200+ inconsistent `parent_color` values from the raw brand and retailer metadata into 18 color groups using a keyword-based, [LLM-assisted taxonomy](notebooks/03_training_set_strategy.ipynb). Then used Cochran's formula with the CIELAB L* standard deviation from a prior analysis I did as the variance estimate and stratified across the 18 color groups with a floor of 5 per group, so rare shades like deep purples and true oranges aren't skipped.
 
-**Train / validation split.** The annotated dataset was split into training and validation sets (stratified by image type where class sizes permitted), with the validation set used throughout development for model selection, architecture comparisons, and active-learning iterations. Because annotation was the primary bottleneck, the project prioritized active learning over reserving a large holdout set. Reported accuracies, IoU scores, and ΔE values are therefore development-set estimates rather than independent benchmark results. The goal was comparing strategies and guiding production decisions under a constrained labeling budget. Current work includes cross-validation, an expanded annotated benchmark, and independent evaluation using human assessment and multimodal LLM judges.
+* Embedding-based style discovery: Embedded and clustered all unlabeled images to surface visually similar groups not captured by metadata or color taxonomy. Sampled from clusters to improve coverage of unknown or rare visual modes (e.g., packaging variants, unusual photography, on-lips shots, composites), increasing the information value of the training set beyond metadata-based sampling.
 
-> **Note:** The annotation set was later expanded with labels sourced through active learning. See [Error Analysis → Active Learning](#error-analysis--active-learning).
+* Rare-type oversampling: An initial annotation pass surfaced which image labels are underrepresented. Those that are very rare are then oversampled.
+
+Annotation was performed in Label Studio. Each image receives one of five presentation-type labels — `swatch`, `bullet`, `liquid`, `closed` (color visible through a window), and `color_not_shown` (fully closed, no recoverable color). The `color_not_shown` class is retained as a first-class label so the production pipeline can decline extraction rather than return an incorrect color.
+
+Moreover, images with visible product color are additionally annotated with a pixel-level mask covering the color-bearing region. These masks serve two purposes: training the segmentation models and defining the region used to derive reference color labels. For each annotated image, the mean CIELAB value is computed over the masked pixels, producing a human-supervised reference color label. This ties color extraction directly to the same annotation used for segmentation rather than a separate manual cropping workflow.
+The final annotation set therefore contains presentation-type labels for all images, segmentation masks for images with visible product color, and reference CIELAB color labels derived from the annotated masks. Mean pairwise ΔE across the labeled set is 30.5, confirming broad coverage of the lipstick color space rather than concentration in a few popular shades.
+<div align="center"> <img src="img/ground_truth_coverage.png" width="500"> </div>
+
+>Note: The annotation set was later expanded with labels sourced through active learning. See Error Analysis → Active Learning.
+
+### Validation & Test Set Strategy
+
+Validation and test sets are drawn from images held out of the training queue and sampled proportionally so they reflect what the model actually meets in production. Because annotation was the binding constraint, the representative benchmark was constructed after the training set had been finalized, ensuring that evaluation images did not participate in model selection, active learning, or coverage-driven sampling. Accuracy, IoU, and ΔE metrics reported on the benchmark therefore reflect performance on previously unseen products rather than development-set estimates. Cross-validation and independent evaluation using human assessment and multimodal-LLM judges remain ongoing work.
 
 ---
 

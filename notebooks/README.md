@@ -19,13 +19,14 @@ pip install -r requirements.txt
 |----------|-------|--------|
 | 01_data_engineering | raw metadata CSVs | `products_with_images.csv` |
 | 02_data_validation | `products_with_images.csv` | cleaned `products_with_images.csv` |
-| 03_annotation_sampling | `products_with_images.csv` | `annotation_sample.csv` |
-| 04_annotation_ground_truth | annotation masks | `ground_truth_labels.csv` |
-| 05_annotation_image_recognition | `annotation_sample.csv` | images for Label Studio |
+| 03_training_set_strategy | `products_with_images.csv` | `annotation_sample/s1_color_taxonomy.csv`, `s2_style_discovery.csv`, `s3_closed_containers.csv` |
+| 04_training_annotation_color | annotated masks | CIELAB color labels for training |
+| 05_training_annotation_image_recognition | training set CSVs | images for Label Studio |
 | 06_model_image_recognition | annotated labels + images | trained ResNet-18 classifier, U-Net segmenters |
 | 07_model_clustering | classifier + images | evaluated clustering results |
 | 08_pipeline_inference | classifier + all images | `products_pipeline.csv` |
 | 09_viz_cielab | `products_pipeline.csv` | visualizations |
+| 10_validation_test_set_strategy | `products_with_images.csv` + training set CSVs | validation and test set CSVs |
 
 Images should be placed in `data/img/original/`.
 
@@ -44,25 +45,24 @@ Images should be placed in `data/img/original/`.
 - Check all downloaded images for corruption and readability
 - Remove invalid files; output a clean image set for downstream processing
 
-**03. [Annotation: Sampling](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/03_annotation_sampling.ipynb)**
-- Consolidate 200+ raw `parent_color` values into 18 color groups via a keyword-based LLM-assisted taxonomy.
-- Calculate sample size using Cochran's formula (n=188, rounded to 200) with CIELAB L* std from a prior lipstick study
-- Select 222 images via stratified proportional sampling with a minimum floor of 5 per group
-- Copy sampled images to `data/img/groundtruth/` for manual annotation
+**03. [Training Set Strategy](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/03_training_set_strategy.ipynb)**
+- Build an annotation queue designed to be informative rather than representative: cover every region of the input space the model needs to handle, even rare ones
+- Strategy 1 — Color taxonomy: consolidate 200+ raw `parent_color` values into 18 groups via a keyword-based LLM-assisted taxonomy; stratified sample with a floor of 5 per group (~223 images)
+- Strategy 2 — Embedding-based style discovery: embed all unlabeled images with ResNet-50, cluster with BisectingKMeans, sample from visually under-covered clusters to capture rare photography styles not surfaced by metadata
+- Strategy 3 — Rare-type oversampling: target product lines confirmed as `closed` containers (smallest class) via product-line matching to boost representation of that image type
 
-**04. [Annotation: Ground Truth Labeling](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/04_annotation_ground_truth.ipynb)**
-- Identify which sampled images received a manual crop (209 out of 222)
-- Extract mean CIELAB color from each cropped swatch image as the ground truth label
-- Visualize ground truth colors as a swatch grid grouped by color taxonomy
-- Assess color space coverage: mean pairwise ΔE = 30.54 across the sample
+**04. [Training Annotation: Color](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/04_training_annotation_color.ipynb)**
+- Extract CIELAB reference color labels from annotated masks for training images
+- Visualize color coverage as a swatch grid grouped by color taxonomy
+- Assess color space coverage: mean pairwise ΔE = 30.5 across the labeled set
 
-**05. [Annotation: Image Type Recognition](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/05_annotation_image_recognition.ipynb)**
-- Prepare annotation sample for labeling in Label Studio
-- Classify images by presentation type: `swatch`, `bullet`, `liquid`, `closed`, `color_not_shown`
-- Image type determines which color extraction strategy to apply downstream
+**05. [Training Annotation: Image Recognition](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/05_training_annotation_image_recognition.ipynb)**
+- Prepare training images for Label Studio annotation
+- Each image receives a presentation-type label (`swatch`, `bullet`, `liquid`, `closed`, `color_not_shown`) and, where applicable, a pixel-level segmentation mask over the color-bearing region
+- Image type labels train the Stage 1 classifier; masks train the Stage 2 segmenters
 
 **06. [Model: Image Recognition & Segmentation](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/06_model_image_recognition.ipynb)**
-- Fine-tune ResNet-18 to classify product images into four types: `swatch`, `bullet_lipstick`, `liquid_lipstick`, `other`
+- Fine-tune ResNet-18 to classify product images into five types: `swatch`, `bullet_lipstick`, `liquid_lipstick`, `closed`, `color_not_shown`
 - Train two U-Nets (ResNet-18 encoder) for color-region segmentation: one for bullet/liquid, one for closed containers
 - Apply type-conditional color extraction: each product type routes to the appropriate extraction method
 - Active learning cycle: surface low-confidence classifier predictions, correct labels, retrain Stage 1
@@ -82,3 +82,8 @@ Images should be placed in `data/img/original/`.
 - Visualize the distribution of extracted colors across the CIELAB color space
 - a\*–b\* scatter plot (chromatic plane) and L\* distribution (lightness)
 - Faceted views by product format (swatch, bullet, liquid)
+
+**10. [Validation & Test Set Strategy](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/10_validation_test_set_strategy.ipynb)** 
+- Build validation and test sets from images held out of the training queue
+- Proportional sampling to reflect the production distribution, with sufficient per-class coverage for meaningful subgroup evaluation
+- Ensures accuracy, IoU, and ΔE metrics are reported on images that never participated in training, model selection, or active learning
