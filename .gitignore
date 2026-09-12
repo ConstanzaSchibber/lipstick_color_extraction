@@ -42,6 +42,7 @@ data/processed/ground_truth_labels.csv
 data/processed/products_llm_final.csv
 data/processed/products_pipeline.csv
 data/annotations/labels_0526.csv
+data/annotations/lips_notshown_pending.txt
 
 # Personal notes
 experiments.txt
@@ -51,8 +52,6 @@ notebooks/portfolio_stats.ipynb
 # Old notebooks
 old_notebooks/
 notebooks/3C_LLM.ipynb
-notebooks/10_training_set_strategy.ipynb
-notebooks/11_validation_test_set_strategy.ipynb
 
 # OS
 .DS_Store

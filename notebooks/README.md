@@ -26,7 +26,7 @@ pip install -r requirements.txt
 | 07_model_clustering | classifier + images | evaluated clustering results |
 | 08_pipeline_inference | classifier + all images | `products_pipeline.csv` |
 | 09_viz_cielab | `products_pipeline.csv` | visualizations |
-| 10_validation_test_set_strategy | `products_with_images.csv` + training set CSVs | validation and test set CSVs |
+| 11_validation_test_set_strategy | `products_with_images.csv` + raw `product_lipstick_metadata.csv` (dates) + training/active-learning CSVs (exclusion set) + `resnet18_classifier_al.pth` | `annotation_sample/eval_worklist.csv`, `annotations/labels_val.csv`, `annotations/labels_test.csv` |
 
 Images should be placed in `data/img/original/`.
 
@@ -83,7 +83,9 @@ Images should be placed in `data/img/original/`.
 - a\*–b\* scatter plot (chromatic plane) and L\* distribution (lightness)
 - Faceted views by product format (swatch, bullet, liquid)
 
-**10. [Validation & Test Set Strategy](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/10_validation_test_set_strategy.ipynb)** 
-- Build validation and test sets from images held out of the training queue
-- Proportional sampling to reflect the production distribution, with sufficient per-class coverage for meaningful subgroup evaluation
-- Ensures accuracy, IoU, and ΔE metrics are reported on images that never participated in training, model selection, or active learning
+**11. [Validation & Test Set Strategy](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/11_validation_test_set_strategy.ipynb)**
+- Held-out pool = catalog minus every image seen by training, model selection, or active learning
+- Per-class sample sizes derived statistically (Cochran / mean-precision + finite-population correction) so accuracy, false-positive/negative rates, IoU, and ΔE each hit a target margin of error
+- Representative colour-group-stratified *core* sample plus a separately-reported classifier-boosted *boost* block for rare types (`lips`, `pencil`, `closed`)
+- Temporal test split: products added on/after a tunable cutoff date
+- Metrics reported with confidence intervals on images that never participated in training

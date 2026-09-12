@@ -26,11 +26,12 @@ Notebooks run in numeric order; each stage's outputs feed the next:
 | 07 strategy comparison | `labels.csv`, checkpoints | analysis only |
 | 08 production inference | all images, checkpoints | `data/processed/products_pipeline.csv` |
 | 09 visualization | `products_pipeline.csv` | plots only |
-| 11 validation/test sets | `products_with_images.csv` | eval set CSVs |
+| 11 validation/test sets | `products_with_images.csv`, raw `product_lipstick_metadata.csv` (for `date_added`), the training + active-learning CSVs (exclusion set), `models/resnet18_classifier_al.pth` | `data/annotation_sample/eval_worklist.csv` (sampling plan); `data/annotations/labels_val.csv` + `labels_test.csv` (after manual annotation) |
 
 Label Studio JSON exports in `data/processed/` are manual artifacts (exported by
-hand from the Label Studio UI) — no notebook produces them. Most of `data/` and
-all images are gitignored.
+hand from the Label Studio UI) — no notebook produces them. This includes the
+notebook-11 eval export (`data/processed/eval_labelstudio.json`). Most of `data/`
+and all images are gitignored.
 
 ## Conventions (do not regress these)
 
