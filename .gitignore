@@ -32,17 +32,13 @@ data/img/
 # Trained model checkpoints (large binaries — use Git LFS or store externally)
 models/
 
-# Generated intermediate CSVs (reproduced by running notebooks in order)
-data/processed/products_with_images.csv
-data/processed/products_clustered.csv
-data/processed/products_clustered_v1.csv
-data/processed/products_clustered_v2.csv
-data/processed/products_clustered_final.csv
-data/processed/ground_truth_labels.csv
-data/processed/products_llm_final.csv
-data/processed/products_pipeline.csv
-data/annotations/labels_0526.csv
-data/annotations/lips_notshown_pending.txt
+# Generated intermediate CSVs/JSON (reproduced by running notebooks in order,
+# or manual Label Studio exports — see CLAUDE.md)
+data/processed/
+
+# Annotation data (worklists, labels, masks — regenerable / manually produced)
+data/annotations/
+data/annotation_sample/
 
 # Personal notes
 experiments.txt
@@ -50,6 +46,9 @@ PRIORITIES.md
 notebooks/portfolio_stats.ipynb
 notebooks/temp_evaluation_strategy.ipynb
 notebooks/temp_validation_evaluation.ipynb
+
+# Work in progress — not ready to commit yet
+notebooks/04_b_validation_annotation_image.ipynb
 
 # Old notebooks
 old_notebooks/
