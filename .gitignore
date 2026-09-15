@@ -48,6 +48,8 @@ data/annotations/lips_notshown_pending.txt
 experiments.txt
 PRIORITIES.md
 notebooks/portfolio_stats.ipynb
+notebooks/temp_evaluation_strategy.ipynb
+notebooks/temp_validation_evaluation.ipynb
 
 # Old notebooks
 old_notebooks/

@@ -19,19 +19,26 @@ Notebooks run in numeric order; each stage's outputs feed the next:
 |---|---|---|
 | 01 data engineering | `data/product_metadata/product_lipstick_metadata.csv` (raw input; repo ships only the `_sample` version) | `data/processed/products_with_images.csv` |
 | 02 data validation | `products_with_images.csv` | same file cleaned (removed rows archived to `invalid_images.csv`), `data/img/original_clean/` |
-| 03 training set strategy | `products_with_images.csv` | `data/annotation_sample/s1_*.csv`, `s2_*.csv`, `s3_*.csv` |
-| 04 color annotation | manually cropped swatches in `data/img/groundtruth/` | ground-truth CIELAB back into `products_with_images.csv` |
-| 05 annotation prep | annotation CSVs, Label Studio JSON exports | `data/processed/annotations*.csv` |
+| 03_a training set strategy | `products_with_images.csv` | `data/annotation_sample/s1_*.csv`, `s2_*.csv`, `s3_*.csv` |
+| 03_b color annotation | manually cropped swatches in `data/img/groundtruth/` | ground-truth CIELAB back into `products_with_images.csv` |
+| 03_c annotation prep | annotation CSVs, Label Studio JSON exports | `data/processed/annotations*.csv` |
+| 04_a validation set strategy | `products_with_images.csv`, the training + active-learning CSVs (exclusion set) | `data/annotation_sample/eval_worklist.csv` (sampling plan) |
+| 04_b validation annotation ingestion | `eval_worklist.csv`, Label Studio export, ground-truth swatch crops | `data/annotations/labels_val.csv` |
+| 05 test set strategy | placeholder — not yet implemented | — |
 | 06 models | `annotations_combined.csv`, masks | `models/*.pth`, `data/annotations/labels.csv`, active-learning queues |
-| 07 strategy comparison | `labels.csv`, checkpoints | analysis only |
+| 07 active learning (WIP, not yet self-contained — see its own intro cell) | `labels.csv`, checkpoints, `data/img/original_clean/` | `active_learning_queue.csv`, `active_learning_seg_queue.csv`, `resnet18_classifier_al.pth` |
 | 08 production inference | all images, checkpoints | `data/processed/products_pipeline.csv` |
 | 09 visualization | `products_pipeline.csv` | plots only |
-| 11 validation/test sets | `products_with_images.csv`, raw `product_lipstick_metadata.csv` (for `date_added`), the training + active-learning CSVs (exclusion set), `models/resnet18_classifier_al.pth` | `data/annotation_sample/eval_worklist.csv` (sampling plan); `data/annotations/labels_val.csv` + `labels_test.csv` (after manual annotation) |
 
 Label Studio JSON exports in `data/processed/` are manual artifacts (exported by
 hand from the Label Studio UI) — no notebook produces them. This includes the
-notebook-11 eval export (`data/processed/eval_labelstudio.json`). Most of `data/`
+notebook-04_b eval export (`data/processed/eval_labelstudio.json`). Most of `data/`
 and all images are gitignored.
+
+One break from strict numeric order: scoring `labels_val.csv` against notebook
+06's models can't happen until those models exist, so that evaluation step lives
+in `notebooks/temp_validation_evaluation.ipynb` (gitignored scratch, not part of
+the numbered chain) — run it after both 04_b and 06 are done.
 
 ## Conventions (do not regress these)
 
@@ -41,7 +48,7 @@ and all images are gitignored.
   merges two dead-end annotation labels (`color_not_shown`: sealed container,
   nothing visible; `multi_impage`, a Label Studio typo for "multi image": several
   products/a palette/not a single product shot) since both get the same downstream
-  treatment (no color extraction) — do this merge in notebook 05 when loading the
+  treatment (no color extraction) — do this merge in notebook 03_c when loading the
   raw Label Studio export, not by keeping them as separate trained classes. Training
   `unclassifiable` directly (rather than relying on low classifier confidence to
   catch it) was a deliberate choice: confidence isn't a reliable proxy for
@@ -62,12 +69,12 @@ and all images are gitignored.
   and the **segmentation strategy**. Never "Model A" / "Model C" — those names
   were deliberately removed.
 - **Metric**: Delta E CIE 2000 against ground truth; JND threshold cited as 2.3.
-  Notebook 04's pairwise-coverage number is plain Euclidean (ΔE76) — label it as
+  Notebook 03_b's pairwise-coverage number is plain Euclidean (ΔE76) — label it as
   such if referenced.
 
 ## Editing notebooks
 
-- Preserve cell outputs — especially the cluster grid images in notebook 03
+- Preserve cell outputs — especially the cluster grid images in notebook 03_a
   (~27MB). Never clear outputs to save space without being asked.
 - For large notebooks, don't read/rewrite the whole file: extract sources with
   `jq` for review, edit the `.ipynb` JSON with a targeted Python script, and
