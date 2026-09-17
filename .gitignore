@@ -47,9 +47,6 @@ notebooks/portfolio_stats.ipynb
 notebooks/temp_evaluation_strategy.ipynb
 notebooks/temp_validation_evaluation.ipynb
 
-# Work in progress — not ready to commit yet
-notebooks/04_b_validation_annotation_image.ipynb
-
 # Old notebooks
 old_notebooks/
 notebooks/3C_LLM.ipynb
