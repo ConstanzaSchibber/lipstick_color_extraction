@@ -71,6 +71,23 @@ the numbered chain) — run it after both 04_b and 06 are done.
 - **Metric**: Delta E CIE 2000 against ground truth; JND threshold cited as 2.3.
   Notebook 03_b's pairwise-coverage number is plain Euclidean (ΔE76) — label it as
   such if referenced.
+- **Label Studio truncates long filenames on upload** (known to recur across
+  annotation rounds). It cuts the name and appends a random 7-char alnum suffix
+  (e.g. `lipstick__valentino__rosso_valentino_high_pigment_refillable_lipstick__gZEL7et.jpg`),
+  so several images from the same long product line whose names differ only in
+  the trailing shade name can collapse to an identical truncated stem. The
+  suffix has no relationship to the original filename tail, so once two or more
+  worklist candidates share a truncated stem there is no way to recover which
+  export task belongs to which image from the export JSON alone — `file_upload`
+  carries the same truncated name, and task/annotation id order doesn't track
+  upload order either (checked both against notebook 04_b's export). Treat
+  these as unresolved rather than guessing — 04_b drops them with a warning
+  count rather than joining them to a worklist row. This is a different bug
+  from the `_[A-Za-z0-9]{7}\.jpg` dedup suffix `resolve_img_name` strips (that
+  one is a real on-disk collision suffix from notebook 02); don't conflate the
+  two just because the suffix shape looks similar. Mitigation: keep image
+  filenames short enough that Label Studio doesn't need to truncate them, or
+  disambiguate long-name groups by hand in Label Studio before annotating.
 
 ## Editing notebooks
 
