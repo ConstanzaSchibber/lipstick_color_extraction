@@ -23,7 +23,8 @@ Notebooks run in numeric order; each stage's outputs feed the next:
 | 03_b color annotation | manually cropped swatches in `data/img/groundtruth/` | ground-truth CIELAB back into `products_with_images.csv` |
 | 03_c annotation prep | annotation CSVs, Label Studio JSON exports | `data/processed/annotations*.csv` |
 | 04_a validation set strategy | `products_with_images.csv`, the training + active-learning CSVs (exclusion set) | `data/annotation_sample/eval_worklist.csv` (sampling plan) |
-| 04_b validation annotation ingestion | `eval_worklist.csv`, Label Studio export, ground-truth swatch crops | `data/annotations/labels_val.csv` |
+| 04_b validation annotation ingestion | `eval_worklist.csv`, Label Studio export (brush masks) | `data/annotations/labels_val.csv` |
+| 04_c validation evaluation | `labels_val.csv`, notebook 06's checkpoints | prints metrics, displays plots — writes no files |
 | 05 test set strategy | placeholder — not yet implemented | — |
 | 06 models | `annotations_combined.csv`, masks | `models/*.pth`, `data/annotations/labels.csv`, active-learning queues |
 | 07 active learning (WIP, not yet self-contained — see its own intro cell) | `labels.csv`, checkpoints, `data/img/original_clean/` | `active_learning_queue.csv`, `active_learning_seg_queue.csv`, `resnet18_classifier_al.pth` |
@@ -36,9 +37,9 @@ notebook-04_b eval export (`data/processed/eval_labelstudio.json`). Most of `dat
 and all images are gitignored.
 
 One break from strict numeric order: scoring `labels_val.csv` against notebook
-06's models can't happen until those models exist, so that evaluation step lives
-in `notebooks/temp_validation_evaluation.ipynb` (gitignored scratch, not part of
-the numbered chain) — run it after both 04_b and 06 are done.
+06's models can't happen until those models exist, so that step is notebook
+04_c, which needs notebook 06's checkpoints even though it's numbered before
+06 — run 04_c after both 04_b and 06 are done.
 
 ## Conventions (do not regress these)
 
@@ -71,6 +72,14 @@ the numbered chain) — run it after both 04_b and 06 are done.
 - **Metric**: Delta E CIE 2000 against ground truth; JND threshold cited as 2.3.
   Notebook 03_b's pairwise-coverage number is plain Euclidean (ΔE76) — label it as
   such if referenced.
+- **Ground-truth CIELAB is computed two different ways** depending on the set:
+  training (03_b) uses the mean color over a separately hand-cropped swatch
+  image in `data/img/groundtruth/`; validation (04_b) uses the median color
+  inside the annotator's own brush mask, applied to the original image — no
+  separate crop exists or is needed for validation. 04_b's mask-based method
+  matches how *predicted* color is extracted (04_c, notebook 06), so true vs.
+  predicted ΔE on the validation set compares like with like; the training-set
+  crop method predates that segmenter-based extraction path.
 - **Label Studio truncates long filenames on upload** (known to recur across
   annotation rounds). It cuts the name and appends a random 7-char alnum suffix
   (e.g. `lipstick__valentino__rosso_valentino_high_pigment_refillable_lipstick__gZEL7et.jpg`),
@@ -78,11 +87,16 @@ the numbered chain) — run it after both 04_b and 06 are done.
   the trailing shade name can collapse to an identical truncated stem. The
   suffix has no relationship to the original filename tail, so once two or more
   worklist candidates share a truncated stem there is no way to recover which
-  export task belongs to which image from the export JSON alone — `file_upload`
+  export task belongs to which image from the filenames alone — `file_upload`
   carries the same truncated name, and task/annotation id order doesn't track
-  upload order either (checked both against notebook 04_b's export). Treat
-  these as unresolved rather than guessing — 04_b drops them with a warning
-  count rather than joining them to a worklist row. This is a different bug
+  upload order either (checked both against notebook 04_b's export). 04_b
+  resolves these by hashing pixel content instead: it reads the actual
+  uploaded bytes from Label Studio's local media store
+  (`~/Library/Application Support/label-studio/media/upload/<project_id>/`,
+  macOS) and matches against the worklist candidates sharing that truncated
+  stem — only genuinely unrecoverable cases (media store unreachable, or a
+  content hash matching more than one candidate) get dropped, with a warning
+  count. This is a different bug
   from the `_[A-Za-z0-9]{7}\.jpg` dedup suffix `resolve_img_name` strips (that
   one is a real on-disk collision suffix from notebook 02); don't conflate the
   two just because the suffix shape looks similar. Mitigation: keep image
