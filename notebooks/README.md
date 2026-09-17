@@ -23,7 +23,8 @@ pip install -r requirements.txt
 | 03_b_training_annotation_color | annotated masks | CIELAB color labels for training |
 | 03_c_training_annotation_image_recognition | training set CSVs | images for Label Studio |
 | 04_a_validation_set_strategy | `products_with_images.csv` + training/active-learning CSVs (exclusion set) | `annotation_sample/eval_worklist.csv` |
-| 04_b_validation_annotation_image | `eval_worklist.csv`, Label Studio export, ground-truth swatch crops | `annotations/labels_val.csv` |
+| 04_b_validation_annotation_image | `eval_worklist.csv`, Label Studio export (brush masks) | `annotations/labels_val.csv` |
+| 04_c_validation_evaluation | `labels_val.csv`, notebook 06's checkpoints | prints metrics, displays plots — writes no files |
 | 05_test_set_strategy | placeholder — not yet implemented | — |
 | 06_model_image_recognition | annotated labels + images | trained ResNet-18 classifier, U-Net segmenters |
 | 07_active_learning (WIP) | `labels.csv`, checkpoints, catalog images | `active_learning_queue.csv`, `active_learning_seg_queue.csv`, `resnet18_classifier_al.pth` |
@@ -70,13 +71,19 @@ Images should be placed in `data/img/original/`.
 - Writes `eval_worklist.csv` for manual annotation in Label Studio
 
 **04b. [Validation Annotation: Ingestion](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/04_b_validation_annotation_image.ipynb)**
-- Parses the Label Studio export of `eval_worklist.csv` (type labels + brush masks) and the manually cropped ground-truth swatches
-- Writes `labels_val.csv` — the ground-truth table notebook evaluation scores against
+- Parses the Label Studio export of `eval_worklist.csv` (type labels + brush masks)
+- Ground-truth CIELAB is the median color inside the annotator's own brush mask, applied to the original image — no separate manually-cropped swatch, unlike notebook 03_b's training-set ground truth
+- Filters to the validation-round annotations by date (the same Label Studio project also holds older training-set annotations)
+- Resolves Label Studio's filename-truncation bug by hashing pixel content against its local media store, and drops redundant rows for pixel-identical duplicate images
+- Writes `labels_val.csv` — the ground-truth table notebook 04c scores against
 
-> **Evaluation lives outside the numbered pipeline.** Scoring notebook 06's models
-> against `labels_val.csv` needs those models to exist, which happens *after* this
-> point in the pipeline — see `temp_validation_evaluation.ipynb` (gitignored
-> scratch), run once notebook 06 and 04b are both done.
+**04c. [Validation Evaluation](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/04_c_validation_evaluation.ipynb)**
+- Scores notebook 06's classifier and segmenters against `labels_val.csv`
+- Reports per-class classifier accuracy/FN/FP rate (Wilson interval), segmentation IoU, and ΔE CIE 2000 vs. ground truth (mean/median with a $t$ interval, plus the ≤2.3/2.3–5/>5 JND tier breakdown)
+
+> **One break from strict numeric order.** 04c needs notebook 06's trained
+> checkpoints, which don't exist until *after* this point in the pipeline —
+> run 04c once notebook 06 and 04b are both done.
 
 **05. [Test Set Strategy](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/05_test_set_strategy.ipynb)**
 - Placeholder — not yet implemented
