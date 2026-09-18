@@ -1,71 +1,40 @@
-"""Routing + color extraction for Model C.
+"""Color extraction from a segmentation mask.
 
-Given a product image, classifies its type and extracts the lipstick color as
-median LAB values using the appropriate strategy per type.
+Given an RGB image and a binary color-region mask (from src/segment.py),
+extracts a single representative CIELAB color. Two strategies, chosen by
+presentation type at the call site (see 07_end_to_end_evaluation.ipynb's
+route_and_extract and 08_pipeline_inference.ipynb):
+
+- extract_masked_color: plain median LAB — used for most types.
+- extract_dominant_cluster_color: median of the largest k-means cluster —
+  used for `closed` (transparent-container) images, where the visible color
+  region can include glare/reflection pixels a plain median would be skewed
+  by.
 """
 import numpy as np
-from PIL import Image
-from skimage import color as skcolor
-
-from src.classify import load_classifier, predict as clf_predict
-from src.segment import load_segmenter, predict_mask
+from skimage.color import rgb2lab
+from sklearn.cluster import KMeans
 
 
-def extract_swatch_color(img_rgb: np.ndarray) -> np.ndarray:
-    """Median LAB after removing white (L>95) and black (L<5) background pixels."""
-    img_lab = skcolor.rgb2lab(img_rgb / 255.0)
-    L = img_lab[:, :, 0]
-    fg = (L > 5) & (L < 95)
-    if fg.sum() == 0:
-        fg = np.ones_like(L, dtype=bool)
-    return np.median(img_lab[fg], axis=0)
+def extract_masked_color(img_rgb: np.ndarray, mask_arr: np.ndarray) -> np.ndarray:
+    """Median LAB of the pixels inside the binary mask."""
+    lab = rgb2lab(img_rgb / 255.0)
+    px = lab[mask_arr == 1]
+    return np.full(3, np.nan) if len(px) == 0 else np.median(px, axis=0)
 
 
-def extract_masked_color(img_rgb: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    """Median LAB of pixels inside the binary mask."""
-    img_lab = skcolor.rgb2lab(img_rgb / 255.0)
-    pixels = img_lab[mask == 1]
-    if len(pixels) == 0:
+def extract_dominant_cluster_color(
+    img_rgb: np.ndarray,
+    mask_arr: np.ndarray,
+    k: int = 3,
+    random_state: int = 42,
+) -> np.ndarray:
+    """Median LAB of the largest of k color clusters inside the mask."""
+    lab = rgb2lab(img_rgb / 255.0)
+    px = lab[mask_arr == 1]
+    if len(px) == 0:
         return np.full(3, np.nan)
-    return np.median(pixels, axis=0)
-
-
-class ColorExtractor:
-    """End-to-end two-stage color extractor.
-
-    Args:
-        classifier_path: Path to resnet18_classifier.pth checkpoint.
-        segmenter_path:  Path to unet_segmenter.pth checkpoint.
-        device:          'cpu', 'cuda', or 'mps'.
-    """
-
-    SEG_CLASSES = {"bullet_lipstick", "liquid_lipstick"}
-
-    def __init__(self, classifier_path: str, segmenter_path: str, device: str = "cpu"):
-        self.clf = load_classifier(classifier_path, device)
-        self.seg = load_segmenter(segmenter_path, device)
-        self.device = device
-
-    def extract(self, img_path: str) -> dict:
-        """Return a dict with product_type, confidence, L, a, b.
-
-        L/a/b are None for 'other' type (caller should fall back to Model A).
-        """
-        product_type, confidence = clf_predict(self.clf, img_path, self.device)
-        img = np.array(Image.open(img_path).convert("RGB"))
-
-        if product_type == "swatch":
-            lab = extract_swatch_color(img)
-        elif product_type in self.SEG_CLASSES:
-            mask = predict_mask(self.seg, img_path, self.device)
-            lab = extract_masked_color(img, mask)
-        else:
-            lab = np.full(3, np.nan)
-
-        return {
-            "product_type": product_type,
-            "confidence": confidence,
-            "L": float(lab[0]) if not np.isnan(lab[0]) else None,
-            "a": float(lab[1]) if not np.isnan(lab[1]) else None,
-            "b": float(lab[2]) if not np.isnan(lab[2]) else None,
-        }
+    if len(px) < k:
+        return np.median(px, axis=0)
+    km = KMeans(n_clusters=k, random_state=random_state, n_init="auto").fit(px)
+    return km.cluster_centers_[np.bincount(km.labels_).argmax()]

@@ -1,4 +1,12 @@
-"""U-Net color-region segmenter — inference only."""
+"""U-Net color-region segmenter — inference only.
+
+One architecture (ResNet-18 encoder, single output channel) is shared by all
+four trained segmenters — bullet/liquid/pencil, closed, swatch, and lips (see
+06_b_model_segmenters.ipynb) — only the checkpoint weights differ, so
+load_segmenter's checkpoint_path argument is the only thing that changes
+between them. Shared by every notebook that needs segmenter predictions
+(07_end_to_end_evaluation.ipynb, 08_pipeline_inference.ipynb).
+"""
 import numpy as np
 import torch
 import segmentation_models_pytorch as smp
@@ -15,6 +23,9 @@ _transform = transforms.Compose([
 
 
 def build_model() -> torch.nn.Module:
+    """ResNet-18-encoder U-Net with a single output channel: a binary
+    color-region mask. encoder_weights=None since this is inference-only —
+    the checkpoint's own weights fully replace them anyway."""
     return smp.Unet(
         encoder_name="resnet18",
         encoder_weights=None,
@@ -24,6 +35,8 @@ def build_model() -> torch.nn.Module:
 
 
 def load_segmenter(checkpoint_path: str, device: str = "cpu") -> torch.nn.Module:
+    """Load one of the four trained segmenter checkpoints (see
+    06_b_model_segmenters.ipynb for how each was trained)."""
     model = build_model()
     state = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(state["model_state_dict"])
@@ -37,7 +50,9 @@ def predict_mask(
     device: str = "cpu",
     threshold: float = 0.5,
 ) -> np.ndarray:
-    """Return binary mask (H x W, values 0/1) resized to the original image size."""
+    """Predict a binary mask (H x W, values 0/1) for img_path, resized back to
+    the original image's dimensions (the model itself always outputs a fixed
+    IMG_SIZE x IMG_SIZE mask)."""
     img = Image.open(img_path).convert("RGB")
     orig_w, orig_h = img.size
     x = _transform(img).unsqueeze(0).to(device)
