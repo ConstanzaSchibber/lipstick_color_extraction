@@ -6,7 +6,7 @@
 
 - **Data:** 9,000+ product images and metadata collected from makeup retailers via API and web scraping; hand-labeled CIELAB annotations built separately for training and out-of-sample evaluation.
 
-- **Methods:** A hybrid two-stage pipeline: a fine-tuned ResNet-18 classifies each image by presentation type (swatch, bullet, liquid, closed, color not shown), which routes it to the best extraction strategy: k-means for swatches, U-Net segmentation + median LAB for product shots, and an explicit no-extraction branch when no color is visible. Evaluated against ground truth with Delta E CIE 2000 (median ΔE ≈ 1–2.4 per type, at the threshold of human perception); a Gaussian Mixture Model clusters the catalog for color-based browsing.
+- **Methods:** A hybrid two-stage pipeline: a fine-tuned ResNet-18 classifies each image by presentation type (bullet, closed, lips, liquid, pencil, swatch, unclassifiable), which routes it to a type-specific U-Net segmenter that isolates the color region, followed by median LAB extraction from the masked pixels, and an explicit no-extraction branch when no color is visible. Evaluated against ground truth with Delta E CIE 2000 (median ΔE ≈ 1–2.4 per type, at the threshold of human perception); a Gaussian Mixture Model clusters the catalog for color-based browsing.
 
 - **App:** Web interface for searching 9,000+ lip products by color: color wheel, photo upload, or hex input.
 
@@ -29,8 +29,7 @@ In what follows, I provide an in-depth overview of the project.
 - [Methods Overview](#methods-overview)
 - [Data Annotation: Training, Validation & Test Sets](#data-annotation-training-validation--test-sets)
 - [Stage 1: Product-Type Classifier](#stage-1-product-type-classifier)
-- [Stage 2, Strategy 1: K-Means Clustering](#stage-2-strategy-1-k-means-clustering)
-- [Stage 2, Strategy 2: U-Net Segmentation + Robust Extraction](#stage-2-strategy-2-u-net-segmentation--robust-extraction)
+- [Stage 2: U-Net Segmentation + Robust Extraction](#stage-2-u-net-segmentation--robust-extraction)
 - [Error Analysis → Active Learning](#error-analysis--active-learning)
 - [Evaluation: Clustering vs. Segmentation](#evaluation-clustering-vs-segmentation)
 - [Production Run & Color Index](#production-run--color-index)
@@ -108,18 +107,15 @@ The core challenge, given a raw retailer product image, is to recover the true l
 
 The right way to extract color depends on what kind of image you're looking at. A swatch *is* the color; a bullet shot is mostly tube; a windowed container shows the color only through plastic. So the architecture is two stages:
 
-1. **Stage 1 — Classify:** a fine-tuned ResNet-18 identifies each image's presentation type (`swatch`, `bullet_lipstick`, `liquid_lipstick`, `closed`, `color_not_shown`).
+1. **Stage 1 — Classify:** a fine-tuned ResNet-18 identifies each image's presentation type (`bullet`, `closed`, `lips`, `liquid`, `pencil`, `swatch`, `unclassifiable`).
 
 2. **Stage 2 — Extract:** the predicted type routes the image to a type-appropriate color extraction strategy.
 
-For Stage 2, I built and evaluated two candidate extraction strategies head-to-head on every image type:
+Stage 2 extracts color with **U-Net segmentation**, applied uniformly across every image type, including swatches: a type-specific U-Net isolates the color-bearing region, then a robust statistic (median LAB) extracts the color from the masked pixels.
 
-| | Strategy | Idea |
-|---|---|---|
-| **Clustering** | K-means on the image's pixels, with a per-type optimal k | The product color should emerge as a dominant color cluster |
-| **Segmentation** | U-Net isolates the color region, then a robust statistic extracts from those pixels | Find *where* the color is first, then measure it |
+An earlier version of this pipeline used **k-means clustering** for extraction instead. It worked well on swatches, where the whole image is the product color, but performed poorly on liquid lipstick, pencils, and other container types, where the product color is a small region and packaging dominates the pixel count. U-Net segmentation replaced it across the board.
 
-Both are scored against human-annotated ground truth using **Delta E CIE 2000 (ΔE)** — the perceptual color-difference metric where values under ~2 are imperceptible to the human eye. The comparison produced a clear, actionable result: **each strategy wins on different image types, and production routes each type to its winner.**
+Extraction is scored against human-annotated ground truth using **Delta E CIE 2000 (ΔE)** — the perceptual color-difference metric where values under ~2 are imperceptible to the human eye.
 
 ---
 
@@ -141,7 +137,7 @@ Images are drawn three ways, each closing a different coverage gap:
 
 * Rare-type oversampling: An initial annotation pass surfaced which image labels are underrepresented. Those that are very rare are then oversampled.
 
-Annotation was performed in Label Studio. Each image receives one of five presentation-type labels — `swatch`, `bullet`, `liquid`, `closed` (color visible through a window), and `color_not_shown` (fully closed, no recoverable color). The `color_not_shown` class is retained as a first-class label so the production pipeline can decline extraction rather than return an incorrect color.
+Annotation was performed in Label Studio. Each image receives one of seven presentation-type labels — `bullet`, `closed` (color visible through a window), `lips` (product shown on-lips rather than in its container), `liquid`, `pencil`, `swatch`, and `unclassifiable`. `unclassifiable` merges two dead-end cases that both get the same downstream treatment (no color extraction): a sealed tube or container with no lipstick color visible, and a stock photo showing several products, a palette, or otherwise not a single product shot. The `unclassifiable` class is retained as a first-class label so the production pipeline can decline extraction rather than return an incorrect color.
 
 Moreover, images with visible product color are additionally annotated with a pixel-level mask covering the color-bearing region. These masks serve two purposes: training the segmentation models and defining the region used to derive reference color labels. For each annotated image, the mean CIELAB value is computed over the masked pixels, producing a human-supervised reference color label. This ties color extraction directly to the same annotation used for segmentation rather than a separate manual cropping workflow.
 The final annotation set therefore contains presentation-type labels for all images, segmentation masks for images with visible product color, and reference CIELAB color labels derived from the annotated masks. Mean pairwise ΔE across the labeled set is 30.5, confirming broad coverage of the lipstick color space rather than concentration in a few popular shades.
@@ -157,15 +153,20 @@ Validation and test sets are drawn from a held-out pool: the catalog minus every
 
 ## Stage 1: Image-Type Classifier
 
-A fine-tuned ResNet-18 (ImageNet-pretrained) classifies each image as `swatch`, `bullet_lipstick`, `liquid_lipstick`, `closed`, or `color_not_shown`.
+A fine-tuned ResNet-18 (ImageNet-pretrained) classifies each image as `bullet`, `closed`, `lips`, `liquid`, `pencil`, `swatch`, or `unclassifiable`.
 
 <table>
   <tr>
-    <td align="center" width="20%"><b>Swatch</b><br><img src="img/lipstick__nars__audacious_lipstick__greta.jpg" width="100%"></td>
-    <td align="center" width="20%"><b>Bullet</b><br><img src="img/lipstick__marie_hunter__lustrous_lipstick__ogden_avenue.jpg" width="100%"></td>
-    <td align="center" width="20%"><b>Liquid</b><br><img src="img/lipstick__nyx_professional_makeup__liquid_suede_cream_lipstick__downtown_beauty.jpg" width="100%"></td>
-    <td align="center" width="20%"><b>Closed</b><br><img src="img/lipstick__chanel__le_rouge_duo_ultra_tenue_ultrawear_liquid_lip_colour__158_intense_blueberry.jpg" width="100%"></td>
-    <td align="center" width="20%"><b>Color Not Shown</b><br><img src="img/lipstick__nyx_professional_makeup__fat_oil_slick_click_vegan_lip_balm__13_going_live.jpg" width="100%"></td>
+    <td align="center" width="25%"><b>Swatch</b><br><img src="img/lipstick__nars__audacious_lipstick__greta.jpg" width="100%"></td>
+    <td align="center" width="25%"><b>Bullet</b><br><img src="img/lipstick__marie_hunter__lustrous_lipstick__ogden_avenue.jpg" width="100%"></td>
+    <td align="center" width="25%"><b>Liquid</b><br><img src="img/lipstick__nyx_professional_makeup__liquid_suede_cream_lipstick__downtown_beauty.jpg" width="100%"></td>
+    <td align="center" width="25%"><b>Closed</b><br><img src="img/lipstick__chanel__le_rouge_duo_ultra_tenue_ultrawear_liquid_lip_colour__158_intense_blueberry.jpg" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center" width="25%"><b>Pencil</b><br><img src="img/lipstick__bobbi_brown__art_stick__brown_berry.jpg" width="100%"></td>
+    <td align="center" width="25%"><b>Lips</b><br><img src="img/lipstick__gerard_cosmetics__hydra_matte_liquid_lipstick__bare_it_all.jpg" width="100%"></td>
+    <td align="center" width="25%"><b>Unclassifiable</b><br><img src="img/lipstick__bodyography__fabric_texture_lipstick__flannel.jpg" width="100%"></td>
+    <td width="25%"></td>
   </tr>
 </table>
 
@@ -186,26 +187,15 @@ A fine-tuned ResNet-18 (ImageNet-pretrained) classifies each image as `swatch`, 
 
 **Validation accuracy: 97%.**
 
-This classifier is the router for everything downstream: both extraction strategies, the production pipeline, and the active-learning loop all depend on it. Images classified `color_not_shown` exit here, because there is no color to extract.
+This classifier is the router for everything downstream: both extraction strategies, the production pipeline, and the active-learning loop all depend on it. Images classified `unclassifiable` exit here, because there is no color to extract.
 
 > **Note:** The 97% figure is the first-pass classifier. Downstream error analysis later revealed that most end-to-end failures were routing errors from this stage, which an active-learning iteration fixed. See [Error Analysis → Active Learning](#error-analysis--active-learning). Final validation accuracy: 98%.
 
 
 ---
-## Stage 2, Strategy 1: K-Means Clustering
+## Stage 2: U-Net Segmentation + Robust Extraction
 
-The product color should be a dominant color cluster in the image. A single global k underperforms because a swatch, a bullet, and a tube have fundamentally different visual structure, so k-means runs with a **per-type optimal k** chosen by the elbow method on each predicted category. Two variants are compared per type: *peak* (largest cluster by pixel count) and *mean* (average across non-background clusters), with near-black and near-white clusters filtered as packaging/background noise.
-
-**Results (ΔE vs. ground truth):**
-
-- **Swatch works (ΔE ≈ 2.2 with peak):** the image *is* the color, so the largest cluster captures it directly.
-
-- **Bullet / liquid fail (ΔE ≈ 16–26):** packaging dominates the pixel count, so the biggest clusters are the tube and background. No clustering variant can fix this, because clustering knows *what* colors are present but not *where* the product color is.
-
-
----
-
-## Stage 2, Strategy 2: U-Net Segmentation + Robust Extraction
+> **Why not k-means.** An earlier version of this pipeline used k-means clustering for extraction, with a **per-type optimal k** chosen by the elbow method on each predicted category. It worked well on swatches (ΔE ≈ 2.2 with the largest cluster by pixel count): the image *is* the color, so the largest cluster captures it directly. But it failed on bullet and liquid lipstick, pencils, and other container types (ΔE ≈ 16–26): packaging dominates the pixel count, so the biggest clusters are the tube and background, and no clustering variant can fix this, because clustering knows *what* colors are present but not *where* the product color is. U-Net segmentation now handles extraction for every type, including swatches.
 
 ### Color-region segmentation
 
@@ -320,7 +310,7 @@ The hybrid pipeline runs over the full catalog of **9,167 product images** with 
 
 - Every image routed to a color-bearing class produces a color. Robustness comes from a small fallback: if a U-Net mask is empty at threshold 0.5, the pipeline retries at 0.3 rather than dropping the product.
 
-- Images classified `color_not_shown` are **explicitly declined**. 
+- Images classified `unclassifiable` are **explicitly declined**. 
 
 - Output: a CIELAB coordinate (plus hex) for every indexed product, joined back to brand/product/shade metadata.
 
