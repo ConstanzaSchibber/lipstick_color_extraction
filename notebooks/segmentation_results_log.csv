@@ -4,28 +4,8 @@ date,segmenter,rotation_range_deg,epochs,n_train,n_val,iou,status
 2026-09-17,closed,15,20,35,4,0.8266,"adopted (unet_segmenter_other.pth), rotation unchanged"
 2026-09-17,swatch,15,40,119,4,0.9348,"adopted (unet_swatch.pth), rotation unchanged"
 2026-09-17,lips,45,30,12,4,0.4471,adopted (unet_lips.pth)
-2026-09-17,bullet_liquid_pencil_baseline,0,20,167,4,0.7846,baseline (superseded by augmented run below)
-2026-09-17,bullet_liquid_pencil,45,60,167,4,0.829,adopted (unet_segmenter.pth)
 2026-09-17,closed,45,20,35,4,0.8144,adopted (unet_segmenter_other.pth)
 2026-09-17,swatch,45,40,119,4,0.9316,adopted (unet_swatch.pth)
-2026-09-17,lips,45,30,12,4,0.4471,adopted (unet_lips.pth)
-2026-09-17,bullet_liquid_pencil_baseline,0,20,167,4,0.7846,baseline (superseded by augmented run below)
-2026-09-17,bullet_liquid_pencil,45,60,167,4,0.829,adopted (unet_segmenter.pth)
-2026-09-17,closed,45,20,35,4,0.8144,adopted (unet_segmenter_other.pth)
-2026-09-17,swatch,45,40,119,4,0.9316,adopted (unet_swatch.pth)
-2026-09-17,lips,45,30,12,4,0.4471,adopted (unet_lips.pth)
-2026-09-17,bullet_liquid_pencil,45,60,167,4,0.829,adopted (unet_segmenter.pth)
-2026-09-17,closed,45,20,35,4,0.8144,adopted (unet_segmenter_other.pth)
-2026-09-17,swatch,45,40,119,4,0.9316,adopted (unet_swatch.pth)
-2026-09-17,lips,45,30,12,4,0.4471,adopted (unet_lips.pth)
-2026-09-17,bullet_liquid_pencil,45,60,167,4,0.829,adopted (unet_segmenter.pth)
-2026-09-17,closed,45,20,35,4,0.8144,adopted (unet_segmenter_other.pth)
-2026-09-17,swatch,45,40,119,4,0.9316,adopted (unet_swatch.pth)
-2026-09-17,lips,45,30,12,4,0.4471,adopted (unet_lips.pth)
-2026-09-17,bullet_liquid_pencil,45,60,171,254,0.724,"adopted (unet_segmenter.pth); trained on 100% of data, IoU on real labels_val.csv"
-2026-09-17,closed,45,20,39,12,0.7342,"adopted (unet_segmenter_other.pth); trained on 100% of data, IoU on real labels_val.csv"
-2026-09-17,swatch,45,40,123,170,0.8844,"adopted (unet_swatch.pth); trained on 100% of data, IoU on real labels_val.csv"
-2026-09-17,lips,45,30,16,11,0.8431,"adopted (unet_lips.pth); trained on 100% of data, IoU on real labels_val.csv"
 2026-09-17,bullet_liquid_pencil,45,60,171,254,0.724,"adopted (unet_segmenter.pth); trained on 100% of data, IoU on real labels_val.csv"
 2026-09-17,closed,45,20,39,12,0.7342,"adopted (unet_segmenter_other.pth); trained on 100% of data, IoU on real labels_val.csv"
 2026-09-17,swatch,45,40,123,170,0.8844,"adopted (unet_swatch.pth); trained on 100% of data, IoU on real labels_val.csv"
