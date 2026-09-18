@@ -24,9 +24,10 @@ pip install -r requirements.txt
 | 03_c_training_annotation_image_recognition | training set CSVs | images for Label Studio |
 | 04_a_validation_set_strategy | `products_with_images.csv` + training/active-learning CSVs (exclusion set) | `annotation_sample/eval_worklist.csv` |
 | 04_b_validation_annotation_image | `eval_worklist.csv`, Label Studio export (brush masks) | `annotations/labels_val.csv` |
-| 04_c_validation_evaluation | `labels_val.csv`, notebook 06's checkpoints | prints metrics, displays plots — writes no files |
+| 04_c_validation_evaluation | `labels_val.csv`, notebooks 06_a/06_b's checkpoints | prints metrics, displays plots — writes no files |
 | 05_test_set_strategy | placeholder — not yet implemented | — |
-| 06_model_image_recognition | annotated labels + images | trained ResNet-18 classifier, U-Net segmenters |
+| 06_a_model_classifier | `annotations_combined.csv`, Label Studio mask export, `products_with_images.csv` | trained ResNet-18 classifier, `labels.csv`, `annotations/masks/` |
+| 06_b_model_segmenters | `labels.csv` (from 06_a) | trained U-Net segmenters, `segmentation_results_log.csv` |
 | 07_active_learning (WIP) | `labels.csv`, checkpoints, catalog images | `active_learning_queue.csv`, `active_learning_seg_queue.csv`, `resnet18_classifier_al.pth` |
 | 08_pipeline_inference | classifier + all images | `products_pipeline.csv` |
 | 09_viz_cielab | `products_pipeline.csv` | visualizations |
@@ -78,26 +79,31 @@ Images should be placed in `data/img/original/`.
 - Writes `labels_val.csv` — the ground-truth table notebook 04c scores against
 
 **04c. [Validation Evaluation](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/04_c_validation_evaluation.ipynb)**
-- Scores notebook 06's classifier and segmenters against `labels_val.csv`
+- Scores notebooks 06a and 06b's classifier and segmenters against `labels_val.csv`
 - Reports per-class classifier accuracy/FN/FP rate (Wilson interval), segmentation IoU, and ΔE CIE 2000 vs. ground truth (mean/median with a $t$ interval, plus the ≤2.3/2.3–5/>5 JND tier breakdown)
 
-> **One break from strict numeric order.** 04c needs notebook 06's trained
-> checkpoints, which don't exist until *after* this point in the pipeline —
-> run 04c once notebook 06 and 04b are both done.
+> **One break from strict numeric order.** 04c needs notebooks 06_a and 06_b's
+> trained checkpoints, which don't exist until *after* this point in the
+> pipeline — run 04c once 04b, 06_a, and 06_b are all done.
 
 **05. [Test Set Strategy](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/05_test_set_strategy.ipynb)**
 - Placeholder — not yet implemented
 
-**06. [Model: Image Recognition & Segmentation](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/06_model_image_recognition.ipynb)**
-- Fine-tune ResNet-18 to classify product images into five types: `swatch`, `bullet_lipstick`, `liquid_lipstick`, `closed`, `color_not_shown`
-- Train two U-Nets (ResNet-18 encoder) for color-region segmentation: one for bullet/liquid, one for closed containers
+**06a. [Model: Classifier (Stage 1)](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/06_a_model_classifier.ipynb)**
+- Data preparation shared with 06b: decode Label Studio brush-mask annotations and join with ground-truth CIELAB into `data/annotations/labels.csv`
+- Fine-tune ResNet-18 to classify product images into seven types: `bullet`, `liquid`, `closed`, `swatch`, `pencil`, `lips`, `unclassifiable`
+- Trained on 100% of the annotated data, no internal train/val split — 04c is the real held-out check
+
+**06b. [Model: Segmenters (Stage 2)](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/06_b_model_segmenters.ipynb)**
+- Reads `labels.csv` from 06a (no data prep of its own)
+- Trains one U-Net segmenter per presentation type — combined for `bullet`/`liquid`/`pencil`, separate for `closed`, `swatch`, and `lips`
 - Apply type-conditional color extraction: each product type routes to the appropriate extraction method
-- Active learning cycle: surface low-confidence classifier predictions, correct labels, retrain Stage 1
+- Appends each run's IoU to `segmentation_results_log.csv` to track results over time
 
 **07. [Active Learning](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/07_active_learning.ipynb)** *(work in progress — not yet runnable standalone)*
 - Part 1: score the Stage 1 classifier's uncertainty on out-of-training images, export a review queue, apply human corrections, retrain
 - Part 2: score segmentation-mask uncertainty on images the classifier is already confident about, prioritize those for mask annotation
-- Split out from notebook 06's active-learning sections into its own notebook; still assumes some objects (`clf`, `CLASSES`, checkpoints) are already in memory from notebook 06
+- Split out from notebook 06's active-learning sections into its own notebook; still assumes some objects (`clf`, `CLASSES`, checkpoints) are already in memory from notebook 06a
 
 > **Archived:** the k-means vs. segmentation strategy-comparison notebook moved to
 > [`old_notebooks/07_model_clustering.ipynb`](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/old_notebooks/07_model_clustering.ipynb).

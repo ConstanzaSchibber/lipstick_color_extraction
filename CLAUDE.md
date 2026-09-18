@@ -24,9 +24,10 @@ Notebooks run in numeric order; each stage's outputs feed the next:
 | 03_c annotation prep | annotation CSVs, Label Studio JSON exports | `data/processed/annotations*.csv` |
 | 04_a validation set strategy | `products_with_images.csv`, the training + active-learning CSVs (exclusion set) | `data/annotation_sample/eval_worklist.csv` (sampling plan) |
 | 04_b validation annotation ingestion | `eval_worklist.csv`, Label Studio export (brush masks) | `data/annotations/labels_val.csv` |
-| 04_c validation evaluation | `labels_val.csv`, notebook 06's checkpoints | prints metrics, displays plots — writes no files |
+| 04_c validation evaluation | `labels_val.csv`, notebooks 06_a and 06_b's checkpoints | prints metrics, displays plots — writes no files |
 | 05 test set strategy | placeholder — not yet implemented | — |
-| 06 models | `annotations_combined.csv`, masks | `models/*.pth`, `data/annotations/labels.csv`, active-learning queues |
+| 06_a model classifier | `annotations_combined.csv`, Label Studio mask export, `products_with_images.csv`, `labels_val.csv` (quick post-training accuracy check) | `models/resnet18_classifier.pth`, `data/annotations/labels.csv`, `data/annotations/masks/` |
+| 06_b model segmenters | `data/annotations/labels.csv` (written by 06_a) | `models/unet_*.pth`, `notebooks/segmentation_results_log.csv` |
 | 07 active learning (WIP, not yet self-contained — see its own intro cell) | `labels.csv`, checkpoints, `data/img/original_clean/` | `active_learning_queue.csv`, `active_learning_seg_queue.csv`, `resnet18_classifier_al.pth` |
 | 08 production inference | all images, checkpoints | `data/processed/products_pipeline.csv` |
 | 09 visualization | `products_pipeline.csv` | plots only |
@@ -38,8 +39,14 @@ and all images are gitignored.
 
 One break from strict numeric order: scoring `labels_val.csv` against notebook
 06's models can't happen until those models exist, so that step is notebook
-04_c, which needs notebook 06's checkpoints even though it's numbered before
-06 — run 04_c after both 04_b and 06 are done.
+04_c, which needs notebooks 06_a and 06_b's checkpoints even though it's
+numbered before them — run 04_c after 04_b, 06_a, and 06_b are all done.
+
+Notebook 06 is split into two: 06_a trains the Stage 1 classifier and also
+does the shared data preparation (decoding Label Studio brush masks, joining
+ground-truth CIELAB into `labels.csv`); 06_b trains the Stage 2 segmenters and
+reads `labels.csv` from disk rather than repeating that data prep. Run 06_a
+before 06_b.
 
 ## Conventions (do not regress these)
 
@@ -61,7 +68,7 @@ One break from strict numeric order: scoring `labels_val.csv` against notebook
   `pencil` and `lips` have no dedicated segmenter data floor yet — check
   `ckpt['classes']` and each class's example count before assuming a class is
   well-supported.
-- **Class order comes from the checkpoint**: notebook 06 saves
+- **Class order comes from the checkpoint**: notebook 06_a saves
   `{'model_state_dict': ..., 'classes': [...]}`. Consumers must read
   `ckpt['classes']` — never hardcode the list. A hardcoded list that drifts from
   the checkpoint silently misroutes predictions (this happened: liquid images
@@ -77,7 +84,7 @@ One break from strict numeric order: scoring `labels_val.csv` against notebook
   image in `data/img/groundtruth/`; validation (04_b) uses the median color
   inside the annotator's own brush mask, applied to the original image — no
   separate crop exists or is needed for validation. 04_b's mask-based method
-  matches how *predicted* color is extracted (04_c, notebook 06), so true vs.
+  matches how *predicted* color is extracted (04_c, notebook 06_b), so true vs.
   predicted ΔE on the validation set compares like with like; the training-set
   crop method predates that segmenter-based extraction path.
 - **Label Studio truncates long filenames on upload** (known to recur across
