@@ -31,7 +31,7 @@ In what follows, I provide an in-depth overview of the project.
 - [Stage 1: Product-Type Classifier](#stage-1-product-type-classifier)
 - [Stage 2: U-Net Segmentation + Robust Extraction](#stage-2-u-net-segmentation--robust-extraction)
 - [Error Analysis → Active Learning](#error-analysis--active-learning)
-- [Evaluation: Clustering vs. Segmentation](#evaluation-clustering-vs-segmentation)
+- [Evaluation & Production Routing](#evaluation--production-routing)
 - [Production Run & Color Index](#production-run--color-index)
 - [Learnings](#learnings)
 - [Citation](#citation)
@@ -133,11 +133,17 @@ Images are drawn three ways, each closing a different coverage gap:
 
 * Color taxonomy:  I consolidated the 200+ inconsistent `parent_color` values from the raw brand and retailer metadata into 18 color groups using a keyword-based, [LLM-assisted taxonomy](notebooks/03_a_training_set_strategy.ipynb). Then used Cochran's formula with the CIELAB L* standard deviation from a prior analysis I did as the variance estimate and stratified across the 18 color groups with a floor of 5 per group, so rare shades like deep purples and true oranges aren't skipped.
 
+<div align="center"> <img src="img/ground_truth_coverage.png" width="500"> </div>
+
 * Embedding-based style discovery: Embedded and clustered all unlabeled images to surface visually similar groups not captured by metadata or color taxonomy. Sampled from clusters to improve coverage of unknown or rare visual modes (e.g., packaging variants, unusual photography, on-lips shots, composites), increasing the information value of the training set beyond metadata-based sampling.
 
-* Rare-type oversampling: An initial annotation pass surfaced which image labels are underrepresented. Those that are very rare are then oversampled.
+* Rare-type oversampling: An initial annotation pass surfaced which image labels are underrepresented. Those that are very rare are then oversampled from the embedding-based clusters.
 
 Annotation was performed in Label Studio. Each image receives one of seven presentation-type labels — `bullet`, `closed` (color visible through a window), `lips` (product shown on-lips rather than in its container), `liquid`, `pencil`, `swatch`, and `unclassifiable`. `unclassifiable` merges two dead-end cases that both get the same downstream treatment (no color extraction): a sealed tube or container with no lipstick color visible, and a stock photo showing several products, a palette, or otherwise not a single product shot. The `unclassifiable` class is retained as a first-class label so the production pipeline can decline extraction rather than return an incorrect color.
+
+<div align="center">
+  <img src="img/training_set_distribution.png" width="400">
+</div>
 
 Moreover, images with visible product color are additionally annotated with a pixel-level mask covering the color-bearing region. These masks serve two purposes: training the segmentation models and defining the region used to derive reference color labels. For each annotated image, the mean CIELAB value is computed over the masked pixels, producing a human-supervised reference color label. This ties color extraction directly to the same annotation used for segmentation rather than a separate manual cropping workflow.
 The final annotation set therefore contains presentation-type labels for all images, segmentation masks for images with visible product color, and reference CIELAB color labels derived from the annotated masks. Mean pairwise ΔE across the labeled set is 30.5, confirming broad coverage of the lipstick color space rather than concentration in a few popular shades.
@@ -170,10 +176,6 @@ A fine-tuned ResNet-18 (ImageNet-pretrained) classifies each image as `bullet`, 
   </tr>
 </table>
 
-<div align="center">
-  <img src="img/annotation_label_distribution.png" width="400">
-</div>
-
 **Why ResNet-18 + transfer learning.** The labeled set is small (~200 images), which rules out training from scratch. ResNet-18 also has several advantages:
 - It's small, so it's forced to learn general features; a larger model would simply memorize 200 images and fail on unseen ones.
 - The task is coarse rather than fine-grained, so ImageNet features transfer almost directly.
@@ -185,12 +187,23 @@ A fine-tuned ResNet-18 (ImageNet-pretrained) classifies each image as `bullet`, 
 
 **Why weighted cross-entropy.** Swatches outnumber the rarest classes ~3×, so an unweighted loss would let the model buy accuracy by over-predicting `swatch`. Inverse-frequency weights penalize errors on rare classes proportionally more.
 
-**Validation accuracy: 97%.**
+**Validation accuracy: 87%** (weighted-avg F1 0.87), on the real held-out validation set (`labels_val.csv`, N=480):
+
+| Class | Precision | Recall | F1 | Support |
+|---|---|---|---|---|
+| `bullet` | 0.83 | 0.99 | 0.91 | 127 |
+| `closed` | 0.35 | 0.67 | 0.46 | 12 |
+| `lips` | 0.79 | 1.00 | 0.88 | 11 |
+| `liquid` | 0.91 | 0.92 | 0.92 | 103 |
+| `pencil` | 0.90 | 0.79 | 0.84 | 24 |
+| `swatch` | 0.99 | 0.88 | 0.93 | 170 |
+| `unclassifiable` | 0.59 | 0.30 | 0.40 | 33 |
+
+`closed` and `unclassifiable` are the weak spots: both are rare in training, and `unclassifiable` in particular is easy to confuse with `bullet` or `liquid` when a photo is a composite of models with the product. 
 
 This classifier is the router for everything downstream: both extraction strategies, the production pipeline, and the active-learning loop all depend on it. Images classified `unclassifiable` exit here, because there is no color to extract.
 
-> **Note:** The 97% figure is the first-pass classifier. Downstream error analysis later revealed that most end-to-end failures were routing errors from this stage, which an active-learning iteration fixed. See [Error Analysis → Active Learning](#error-analysis--active-learning). Final validation accuracy: 98%.
-
+> **Note:** Downstream error analysis later revealed that most end-to-end failures were routing errors from this stage, which is why I expanded the training set with a focus on coverage and oversampling rare categories. I also added knew categories like `lips` and `pencil`.
 
 ---
 ## Stage 2: U-Net Segmentation + Robust Extraction
@@ -199,20 +212,20 @@ This classifier is the router for everything downstream: both extraction strateg
 
 ### Color-region segmentation
 
-Two U-Nets (ResNet-18 encoder, ImageNet-pretrained, 256×256 input → binary mask) trained on the hand-drawn Label Studio masks.
+Four U-Nets (ResNet-18 encoder, ImageNet-pretrained, 256×256 input → binary mask), one per class family, trained on the hand-drawn Label Studio masks. All four share the same augmentation: random horizontal/vertical flips plus rotation up to ±45°, applied identically to image and mask.
 
 **Why U-Net + ResNet-18 encoder.** Same small-data logic as Stage 1, applied to segmentation:
-- U-Net is the standard architecture for segmentation with few labels. Specifically, it skip connections carry fine spatial detail from encoder to decoder, which matters for tight masks on thin regions like a lipstick bullet.
+- U-Net is the standard architecture for segmentation with few labels. Specifically, its skip connections carry fine spatial detail from encoder to decoder, which matters for tight masks on thin regions like a lipstick bullet.
 - The ResNet-18 encoder is ImageNet-pretrained. Given the small number of annotated images, only the decoder and mask-specific behavior have to be learned from scratch.
-- Reusing the same backbone as Stage 1 keeps the pipeline consistent and made the Segmenter A → Segmenter B warm-start straightforward, since both share an architecture.
+- Reusing the same backbone as Stage 1 keeps the pipeline consistent and makes warm-starting one segmenter from another straightforward, since they all share an architecture.
 
-The two U-Nets trained on the hand-drawn Label Studio masks:
+- **Main segmenter** (`bullet` + `liquid` + `pencil`, 171 training images, 60 epochs): trained from ImageNet weights. Validation IoU 0.72. The `closed` and `lips` segmenters below warm-start from this one.
 
-Two U-Nets (ResNet-18 encoder, ImageNet-pretrained, 256×256 input → binary mask) trained on the hand-drawn Label Studio masks:
+- **Closed segmenter** (product visible through a window or transparent packaging, 39 training images, 20 epochs): warm-started from the main segmenter's weights, since it already knows what a lipstick color-region mask looks like. Validation IoU 0.73.
 
-- **Segmenter A** (`bullet` + `liquid`, 74 training images): 20 epochs at a fixed LR, evaluated with IoU. A longer `ReduceLROnPlateau` run *reduced* validation IoU (because the bottleneck is dataset size) so the simpler run was kept.
+- **Swatch segmenter** (123 training images, 40 epochs): trained from ImageNet weights. Warm-starting from the main segmenter was tested here too, but made no measurable difference (IoU 0.883 warm-started vs. 0.884 fresh) — a swatch photo doesn't resemble a packaged product closely enough for that prior to help, so the simpler fresh-init version was kept. Validation IoU 0.88.
 
-- **Segmenter B** (`closed` — product visible through a window or transparent packaging, ~27 training images): training from ImageNet weights produced loose masks. Two fixes: warm-starting from Segmenter A's weights, since it already knows what a lipstick color-region mask looks like, and synchronized augmentation (identical flips and ±15° rotations applied to image and mask). With these, predicted masks align tightly with ground truth.
+- **Lips segmenter** (16 training images, deduplicated from 18 — a few rows share one retailer photo across shade listings — 30 epochs): warm-started from the main segmenter. Validation IoU 0.84.
 
 See randomly selected image-mask-prediction combinations:
 
@@ -252,25 +265,31 @@ Accuracy on the original validation images was already near-ceiling, so the gain
 
 ---
 
-## Evaluation & Production Routing: Clustering vs. Segmentation
+## Evaluation & Production Routing
 
-Stage 1 classifies each image, then routes it to the cheapest extraction method that wins for its type:
+Stage 1 classifies each image, then routes it to its type's U-Net segmenter, followed by median LAB extraction from the masked pixels:
 
-- `swatch` → k-means peak color
-- `bullet`, `liquid` → U-Net Segmenter A + median
-- `closed` → U-Net Segmenter B + dominant cluster
-- `color_not_shown` → no extraction
+- `bullet`, `liquid`, `pencil` → main segmenter + median LAB
+- `closed` → closed segmenter + median LAB
+- `swatch` → swatch segmenter + median LAB
+- `lips` → lips segmenter + median LAB
+- `unclassifiable` → no extraction
 
-Swatches are entirely the target color, so k-means is accurate on its own. No masks or segmentation model needed for the largest image category (~30%). For everything else the color is a small region surrounded by packaging, where k-means fails badly but segmentation gets close to the just-noticeable-difference threshold:
+End-to-end ΔE against ground truth, on the real held-out validation set (predicted-routed, i.e. using the classifier's own routing decision rather than the true label):
 
-| Image type | k-means | Alternative | Production choice |
+| Type | n | Mean ΔE | Median ΔE |
 |---|---|---|---|
-| swatch | **2.16** | 3.15 (threshold + median) | k-means |
-| bullet / liquid / closed | 16–26 | **2–4.6** (U-Net) | Segmentation |
+| swatch | 151 | 0.43 | 0.07 |
+| bullet | 117 | 0.71 | 0.33 |
+| lips | 11 | 0.75 | 0.36 |
+| liquid | 94 | 1.27 | 0.63 |
+| pencil | 21 | 2.39 | 0.94 |
+| closed | 6 | 2.58 | 1.57 |
+| **All (core)** | 309 | 0.69 | 0.19 |
 
-*Mean ΔE vs ground truth on the same labeled images; bold = method used in production.*
+Every type's median ΔE lands under the ~2.3 just-noticeable-difference threshold. `pencil` and `closed` have the widest spread and the smallest validation samples (n=21, n=6) — both are rare classes with fewer training and validation examples than swatch/bullet/liquid, so their numbers carry more uncertainty.
 
-Randomly selected examples showing predictions from clustering (A pred, left) and segmentation (C pred, right) against ground truth (bottom):
+Randomly selected examples showing predicted vs. ground-truth color:
 
 <table>
   <tr>
@@ -290,20 +309,21 @@ Randomly selected examples showing predictions from clustering (A pred, left) an
 ```mermaid
 flowchart TD
     A["📷 Product image"] --> B["ResNet-18 classifier<br/><i>image presentation type</i>"]
-    B -->|swatch| C["K-means clustering<br/><i>peak cluster</i>"]
-    B -->|bullet_lipstick| D["U-Net Segmenter A<br/><i>median LAB of masked pixels</i>"]
-    B -->|liquid_lipstick| D
-    B -->|closed| E["U-Net Segmenter B<br/><i>dominant cluster of masked pixels</i>"]
-    B -->|color_not_shown| F["No extraction<br/><i>fall back to another product image,<br/>else exclude from index</i>"]
-    C --> G["CIELAB coordinate<br/>(L*, a*, b*)"]
-    D --> G
-    E --> G
-    G --> H[("Color index<br/>9,000+ products")]
-    H --> I["Search by ΔE distance<br/>color wheel · photo upload · hex"]
+    B -->|bullet, liquid, pencil| C["Main U-Net segmenter<br/><i>median LAB of masked pixels</i>"]
+    B -->|closed| D["Closed U-Net segmenter<br/><i>median LAB of masked pixels</i>"]
+    B -->|swatch| E["Swatch U-Net segmenter<br/><i>median LAB of masked pixels</i>"]
+    B -->|lips| F["Lips U-Net segmenter<br/><i>median LAB of masked pixels</i>"]
+    B -->|unclassifiable| G["No extraction<br/><i>fall back to another product image,<br/>else exclude from index</i>"]
+    C --> H["CIELAB coordinate<br/>(L*, a*, b*)"]
+    D --> H
+    E --> H
+    F --> H
+    H --> I[("Color index<br/>9,000+ products")]
+    I --> J["Search by ΔE distance<br/>color wheel · photo upload · hex"]
 
-    style F stroke-dasharray: 5 5
-    style G fill:#f9d5e5,color:#1a1a1a,stroke:#c2185b
-    style H fill:#e8e8e8,color:#1a1a1a,stroke:#888
+    style G stroke-dasharray: 5 5
+    style H fill:#f9d5e5,color:#1a1a1a,stroke:#c2185b
+    style I fill:#e8e8e8,color:#1a1a1a,stroke:#888
 ```
 
 The hybrid pipeline runs over the full catalog of **9,167 product images** with batched ResNet-18 inference for routing, then type-specific extraction:
@@ -322,11 +342,9 @@ For the app's color-wheel navigation, the full catalog is clustered in LAB space
 
 **Localization beats color statistics.** Clustering methods know *what* colors are in an image but not *where* the product is. The single biggest accuracy jump in the project (ΔE 16–26 → ~2) came not from a better color algorithm but from segmenting the right pixels first.
 
-**With small data, transfer what you have before training longer.** Warm-starting the `closed` segmenter from the bullet/liquid segmenter's weights (~27 training images) helped far more than any optimization tweak, while adding an LR scheduler and more epochs to the main segmenter actually *hurt* validation IoU. When the bottleneck is data, the answer is better priors and augmentation, not longer training.
+**Warm-starting helps only when the source and target domains actually look alike.** Warm-starting the `closed` (39 training images) and `lips` (16 images) segmenters from the main segmenter's weights, instead of training from ImageNet weights alone, was the difference between usable and unusable masks on those rare classes. But it's not automatic: testing the same warm start on the `swatch` segmenter made no measurable difference (IoU 0.883 vs. 0.884 fresh) — a swatch photo doesn't resemble the packaged-product images the main segmenter learned from, so that prior had nothing to transfer.
 
 **Active learning pays off most when annotation is the bottleneck.** Hand-drawing segmentation masks and cropping ground-truth colors is slow, so annotating images is expensive relative to what each label teaches the model. Letting the classifier's own uncertainty choose what to annotate next inverted that: low-confidence predictions pointed straight at the failure mode (windowed-container images split between `closed` and `bullet`/`liquid`), and fixing them required only cheap type-label corrections — no new masks. Forty-eight targeted labels improved generalization on exactly the category the pipeline was misrouting, a result random sampling would have needed far more annotation time to match.
-
-**The simplest method that wins should ship.** The deep pipeline lost to plain k-means on *swatch images*. Keeping k-means for that route made the production system both cheaper and more accurate than committing to deep learning everywhere. Swatches are the most common image at around 30%.
 
 **Evaluation is only as good as the ground truth you design.** Because no benchmark existed, every modeling claim in this project rests on the stratified, hand-labeled CIELAB sample built first. I'm currently working on expanding evaluation using Multimodal LLMs-as-a-jude because a [previous analysis](https://github.com/ConstanzaSchibber/capstone_colors#method-2-improving-makeup-color-identification-with-multimodal-ai) I did showed that they can identify specific CIELAB colors.
 
