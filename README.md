@@ -139,13 +139,14 @@ Images are drawn three ways, each closing a different coverage gap:
 
 * Rare-type oversampling: An initial annotation pass surfaced which image labels are underrepresented. Those that are very rare are then oversampled from the embedding-based clusters.
 
-Annotation was performed in Label Studio. Each image receives one of seven presentation-type labels — `bullet`, `closed` (color visible through a window), `lips` (product shown on-lips rather than in its container), `liquid`, `pencil`, `swatch`, and `unclassifiable`. `unclassifiable` merges two dead-end cases that both get the same downstream treatment (no color extraction): a sealed tube or container with no lipstick color visible, and a stock photo showing several products, a palette, or otherwise not a single product shot. The `unclassifiable` class is retained as a first-class label so the production pipeline can decline extraction rather than return an incorrect color.
+**Annotation in Label Studio:** Each image receives one of seven presentation-type labels, `bullet`, `closed` (color visible through a window), `lips` (product shown on-lips rather than in its container), `liquid`, `pencil`, `swatch`, and `unclassifiable`. `unclassifiable` merges two dead-end cases that both get the same downstream treatment (no color extraction): a sealed tube or container with no lipstick color visible, and a stock photo showing several products, a palette, or otherwise not a single product shot. The `unclassifiable` class is retained as a first-class label so the production pipeline can decline extraction rather than return an incorrect color.
 
 <div align="center">
   <img src="img/training_set_distribution.png" width="400">
 </div>
 
-Moreover, images with visible product color are additionally annotated with a pixel-level mask covering the color-bearing region. These masks serve two purposes: training the segmentation models and defining the region used to derive reference color labels. For each annotated image, the mean CIELAB value is computed over the masked pixels, producing a human-supervised reference color label. This ties color extraction directly to the same annotation used for segmentation rather than a separate manual cropping workflow.
+Moreover, images with visible product color are additionally *annotated with a pixel-level mask* covering the color-bearing region. These masks serve two purposes: training the segmentation models and defining the region used to derive reference color labels. For each annotated image, the mean CIELAB value is computed over the masked pixels, producing a human-supervised reference color label. This ties color extraction directly to the same annotation used for segmentation rather than a separate manual cropping workflow.
+
 The final annotation set therefore contains presentation-type labels for all images, segmentation masks for images with visible product color, and reference CIELAB color labels derived from the annotated masks. Mean pairwise ΔE across the labeled set is 30.5, confirming broad coverage of the lipstick color space rather than concentration in a few popular shades.
 
 
@@ -154,6 +155,8 @@ The final annotation set therefore contains presentation-type labels for all ima
 ### Validation & Test Set Strategy
 
 Validation and test sets are drawn from a held-out pool: the catalog minus every image that touched training, model selection, or active learning. Because annotation is the binding constraint, sample sizes are derived rather than guessed — for each metric (per-class classifier accuracy, false-positive and false-negative rates, segmentation IoU, ΔE CIE 2000) a target margin of error and a prior variance estimate feed the standard sample-size formula (Cochran / mean-precision) with a finite-population correction, and the per-class floor is the largest requirement across metrics. The pool is sampled two ways: a *core* block drawn at random, stratified only by color group, that carries the headline numbers; and a *boost* block that tops up the rare presentation types (`lips`, `pencil`, `closed`, `unclassifiable`) using the classifier's own predictions to find candidates — reported separately, since selecting on the prediction biases that class's apparent routing recall. The test set is a temporal split: products added on or after a cutoff date, so the reported numbers measure performance on genuinely newer products. Every metric is reported with a confidence interval (Wilson for rates, Student-*t* for means). Cross-validation and independent evaluation using human assessment and multimodal-LLM judges remain ongoing work.
+
+Validation set is also annotated in Label Studio in the same way as the training set.
 
 ---
 
