@@ -131,7 +131,7 @@ Different sets, different objectives. A training set needs to be informative: co
 
 Images are drawn three ways, each closing a different coverage gap:
 
-* Color taxonomy:  I consolidated the 200+ inconsistent `parent_color` values from the raw brand and retailer metadata into 18 color groups using a keyword-based, [LLM-assisted taxonomy](notebooks/03_a_training_set_strategy.ipynb). Then used Cochran's formula with the CIELAB L* standard deviation from a prior analysis I did as the variance estimate and stratified across the 18 color groups with a floor of 5 per group, so rare shades like deep purples and true oranges aren't skipped.
+* Color taxonomy:  I consolidated the 200+ inconsistent `parent_color` values from the raw brand and retailer metadata into 18 color groups using a keyword-based, [LLM-assisted taxonomy](notebooks/03_a_training_set_strategy.ipynb). Then used Cochran's formula with the CIELAB L* standard deviation from a prior analysis I did as the variance estimate and stratified across the 18 color groups with a floor of 5 per group, so rare shades like deep purples and true oranges aren't skipped. Below are color swatches from the training data sampled proportionally to the colox taxonomy:
 
 <div align="center"> <img src="img/ground_truth_coverage.png" width="500"> </div>
 
@@ -147,7 +147,7 @@ Annotation was performed in Label Studio. Each image receives one of seven prese
 
 Moreover, images with visible product color are additionally annotated with a pixel-level mask covering the color-bearing region. These masks serve two purposes: training the segmentation models and defining the region used to derive reference color labels. For each annotated image, the mean CIELAB value is computed over the masked pixels, producing a human-supervised reference color label. This ties color extraction directly to the same annotation used for segmentation rather than a separate manual cropping workflow.
 The final annotation set therefore contains presentation-type labels for all images, segmentation masks for images with visible product color, and reference CIELAB color labels derived from the annotated masks. Mean pairwise ΔE across the labeled set is 30.5, confirming broad coverage of the lipstick color space rather than concentration in a few popular shades.
-<div align="center"> <img src="img/ground_truth_coverage.png" width="500"> </div>
+
 
 >Note: The annotation set was later expanded with labels sourced through active learning. See Error Analysis → Active Learning.
 
