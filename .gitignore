@@ -49,7 +49,7 @@ notebooks/temp_rotation_augmentation_experiment.ipynb
 launch_label_studio.py
 
 # WIP, not self-contained (see CLAUDE.md)
-notebooks/07_active_learning.ipynb
+notebooks/10_active_learning.ipynb
 
 # Old notebooks
 old_notebooks/
