@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-from tqdm.auto import tqdm
+from tqdm import tqdm
 from PIL import Image
 
 from src.classify import IMG_SIZE

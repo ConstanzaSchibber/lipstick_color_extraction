@@ -28,7 +28,7 @@ Notebooks run in numeric order; each stage's outputs feed the next:
 | 06_a model classifier | `annotations_combined.csv`, Label Studio mask export, `products_with_images.csv`, `labels_val.csv` (quick post-training accuracy check) | `models/resnet18_classifier.pth`, `data/annotations/labels.csv`, `data/annotations/masks/` |
 | 06_b model segmenters | `data/annotations/labels.csv` (written by 06_a) | `models/unet_*.pth`, `notebooks/segmentation_results_log.csv` |
 | 07 end-to-end pipeline evaluation | `labels_val.csv`, notebooks 06_a and 06_b's checkpoints | prints metrics, displays plots — writes no files |
-| 08 production inference | all images, checkpoints | `data/processed/products_pipeline.csv` |
+| 08 production inference | all images, checkpoints, `products_with_images.csv` (for shared-stock-photo detection) | `data/processed/products_pipeline.csv`, `shared_stock_photo_groups.csv` (audit of rows excluded as duplicate seller photos) |
 | 09 visualization | `products_pipeline.csv` | plots only |
 | 10 active learning (WIP, not yet self-contained — see its own intro cell) | `labels.csv`, checkpoints, `data/img/original_clean/` | `active_learning_queue.csv`, `active_learning_seg_queue.csv`, `resnet18_classifier_al.pth` |
 
@@ -104,6 +104,17 @@ before 06_b.
   two just because the suffix shape looks similar. Mitigation: keep image
   filenames short enough that Label Studio doesn't need to truncate them, or
   disambiguate long-name groups by hand in Label Studio before annotating.
+- **Three distinct, unrelated dedup mechanisms exist — don't conflate them**:
+  (1) notebook 02's `img_name`-based `drop_duplicates`, for literal on-disk
+  filename collisions; (2) 04_b's content-hash resolution of Label Studio's
+  truncated-filename collisions (see above); (3) `src/dedup.py`'s
+  `find_shared_photo_groups`, used by notebook 08, which groups products
+  that share one identical seller photo across multiple shades (e.g. a
+  product line where every shade's listing reuses the same stock photo).
+  That third case isn't a data error to clean up in 02 — each shade is a
+  real, distinct product row — so instead of removing rows, 08 keeps every
+  row's metadata but excludes the whole group from color extraction, since
+  a shared photo can't represent any one member's actual shade color.
 
 ## Editing notebooks
 
