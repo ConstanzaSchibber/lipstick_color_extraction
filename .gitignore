@@ -40,6 +40,9 @@ data/processed/
 data/annotations/
 data/annotation_sample/
 
+# Pre-reannotation backups of the above (see CLAUDE.md)
+data/backups/
+
 # Personal notes
 experiments.txt
 PRIORITIES.md
