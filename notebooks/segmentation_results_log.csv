@@ -10,3 +10,8 @@ date,segmenter,rotation_range_deg,epochs,n_train,n_val,iou,status
 2026-09-17,closed,45,20,39,12,0.7342,"adopted (unet_segmenter_other.pth); trained on 100% of data, IoU on real labels_val.csv"
 2026-09-17,swatch,45,40,123,170,0.8844,"adopted (unet_swatch.pth); trained on 100% of data, IoU on real labels_val.csv"
 2026-09-17,lips,45,30,16,11,0.8431,"adopted (unet_lips.pth); trained on 100% of data, IoU on real labels_val.csv"
+2026-09-18,bullet_liquid_pencil,45,60,170,254,0.7011,"adopted (unet_segmenter.pth); trained on 100% of data, IoU on real labels_val.csv"
+2026-09-18,closed,45,20,39,14,0.7508,"adopted (unet_segmenter_other.pth); trained on 100% of data, IoU on real labels_val.csv"
+2026-09-18,swatch,45,40,123,171,0.8819,"adopted (unet_swatch.pth); trained on 100% of data, IoU on real labels_val.csv"
+2026-09-18,lips,45,30,16,12,0.7811,"adopted (unet_lips.pth); trained on 100% of data, IoU on real labels_val.csv"
+2026-09-18,closed,45,20,39,17,0.7615,revalidation only (no retrain) after labels_val.csv correction; unet_segmenter_other.pth unchanged
