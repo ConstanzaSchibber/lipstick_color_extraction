@@ -290,11 +290,13 @@ End-to-end ΔE against ground truth, on the real held-out validation set (predic
 | liquid | 95 | 2.05 | 0.65 |
 | pencil | 20 | 3.65 | 0.75 |
 | closed | 12 | 1.92 | 0.44 |
-| **All (core)** | 320 | 1.06 | 0.29 |
+| **All** | 412 | 1.14 | 0.31 |
 
-**91.2% of core validation images land within the 2.3 ΔE just-noticeable-difference threshold** (5.0% fall in the 2.3–5 range, 3.8% land above 5).
+**90.5% of validation images land within the 2.3 ΔE just-noticeable-difference threshold** (5.1% fall in the 2.3–5 range, 4.4% land above 5).
 
 Every type's median ΔE lands well under that ~2.3 threshold. The median is a more representative number here, since Mean ΔE is skewed upward by a handful of outlier images in the smaller samples (e.g. `pencil`'s mean of 3.65 vs. its median of 0.75). `pencil`, `closed`, and `lips` have the smallest validation samples (n=20, n=12, n=12) and the widest mean/median gaps; all three are rare classes with fewer training and validation examples than swatch/bullet/liquid, so a few bad routings or masks pull their mean disproportionately.
+
+> The validation set oversampled `pencil`, `closed`, and `lips` (rare presentation types) beyond their share of the catalog, to have enough observations to draw per-subgroup conclusions from. Thus, the table above isn't a strictly representative sample of the full product catalog. Restricted to just the randomly-drawn, unconditional slice of the validation set (n=320, no oversampling), the rate is **91.2%** which is slightly higher, since it excludes the extra rare-category images that pull the aggregate down.
 
 Randomly selected examples showing predicted vs. ground-truth color:
 
