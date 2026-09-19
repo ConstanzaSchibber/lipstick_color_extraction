@@ -6,7 +6,7 @@
 
 - **Data:** 9,000+ product images and metadata collected from makeup retailers via API and web scraping; hand-labeled CIELAB annotations built separately for training and out-of-sample evaluation.
 
-- **Methods:** A hybrid two-stage pipeline: a fine-tuned ResNet-18 classifies each image by presentation type (bullet, closed, lips, liquid, pencil, swatch, unclassifiable), which routes it to a type-specific U-Net segmenter that isolates the color region, followed by median LAB extraction from the masked pixels, and an explicit no-extraction branch when no color is visible. Evaluated against ground truth with Delta E CIE 2000 (median ΔE ≈ 1–2.4 per type, at the threshold of human perception); a Gaussian Mixture Model clusters the catalog for color-based browsing.
+- **Methods:** A hybrid two-stage pipeline: a fine-tuned ResNet-18 classifies each image by presentation type (bullet, closed, lips, liquid, pencil, swatch, unclassifiable), which routes it to a type-specific U-Net segmenter that isolates the color region, followed by median LAB extraction from the masked pixels, and an explicit no-extraction branch when no color is visible. Evaluated against ground truth with Delta E CIE 2000 (median ΔE well under the ~2.3 just-noticeable-difference threshold for every type); a Gaussian Mixture Model clusters the catalog for color-based browsing.
 
 - **App:** Web interface for searching 9,000+ lip products by color: color wheel, photo upload, or hex input.
 
@@ -252,20 +252,20 @@ Median ΔE is at or near the just-noticeable-difference threshold (~2) for every
 ---
 ## Error Analysis → Active Learning
 
-Error analysis on the original training set surfaced a recurring **Stage 1 routing error**: windowed-container images misclassified as `bullet` or `liquid`, sent through the wrong segmenter, producing nonsense colors.
+I conducted end-to-end error analysis from classification, to segmentation and color prediction. This surfaced a recurring **Stage 1 routing error**: windowed-container images misclassified as `bullet` or `liquid`, sent through the wrong segmenter, producing nonsense colors.
 
-I closed the loop with active learning, run across two rounds: score classifier confidence on images outside the training set, flag the low-confidence cases (largely the `closed`/`bullet`/`liquid` confusion above), correct just the type label, and retrain — no new masks needed. The first round added 48 corrected images to the training set.
+I closed the loop with active learning, run across two rounds: score classifier confidence on images outside the training set, flag the low-confidence cases (largely the `closed`/`bullet`/`liquid` confusion above), correct just the type label, and retrain. The first round added 48 corrected images to the training set; the second, 13.
 
-The training set was later expanded further for coverage and to oversample rare categories (adding `lips` and `pencil`, among other gaps) — see `06_a_model_classifier.ipynb` for the full history.
+The training set was later expanded further for coverage and to oversample rare categories (adding `lips` and `pencil`, among other gaps).
 
 ---
 
-## Evaluation & Production Routing
+## End to end Evaluation 
 
 Stage 1 classifies each image, then routes it to its type's U-Net segmenter, followed by median LAB extraction from the masked pixels:
 
 - `bullet`, `liquid`, `pencil` → main segmenter + median LAB
-- `closed` → closed segmenter + median LAB
+- `closed` → closed segmenter + dominant-cluster LAB (resists glare/reflection through transparent packaging)
 - `swatch` → swatch segmenter + median LAB
 - `lips` → lips segmenter + median LAB
 - `unclassifiable` → no extraction
@@ -274,26 +274,28 @@ End-to-end ΔE against ground truth, on the real held-out validation set (predic
 
 | Type | n | Mean ΔE | Median ΔE |
 |---|---|---|---|
-| swatch | 151 | 0.43 | 0.07 |
-| bullet | 117 | 0.71 | 0.33 |
-| lips | 11 | 0.75 | 0.36 |
-| liquid | 94 | 1.27 | 0.63 |
-| pencil | 21 | 2.39 | 0.94 |
-| closed | 6 | 2.58 | 1.57 |
-| **All (core)** | 309 | 0.69 | 0.19 |
+| swatch | 150 | 0.42 | 0.07 |
+| bullet | 123 | 0.75 | 0.45 |
+| lips | 12 | 1.96 | 0.46 |
+| liquid | 95 | 2.05 | 0.65 |
+| pencil | 20 | 3.65 | 0.75 |
+| closed | 12 | 1.92 | 0.44 |
+| **All (core)** | 320 | 1.06 | 0.29 |
 
-Every type's median ΔE lands under the ~2.3 just-noticeable-difference threshold. `pencil` and `closed` have the widest spread and the smallest validation samples (n=21, n=6) — both are rare classes with fewer training and validation examples than swatch/bullet/liquid, so their numbers carry more uncertainty.
+Every type's median ΔE lands well under the ~2.3 just-noticeable-difference threshold. The median is a more representative number here, since Mean ΔE is skewed upward by a handful of outlier images in the smaller samples (e.g. `pencil`'s mean of 3.65 vs. its median of 0.75). `pencil`, `closed`, and `lips` have the smallest validation samples (n=20, n=12, n=12) and the widest mean/median gaps; all three are rare classes with fewer training and validation examples than swatch/bullet/liquid, so a few bad routings or masks pull their mean disproportionately.
 
 Randomly selected examples showing predicted vs. ground-truth color:
 
 <table>
   <tr>
-    <td width="50%" align="center"><b>Swatch</b><br><img src="img/result_comparison4.png" width="100%"></td>
-    <td width="50%" align="center"><b>Bullet</b><br><img src="img/result_comparison.png" width="100%"></td>
+    <td width="33%" align="center"><b>Swatch</b><br><img src="img/eval_swatch.png" width="100%"></td>
+    <td width="33%" align="center"><b>Bullet</b><br><img src="img/eval_bullet.png" width="100%"></td>
+    <td width="33%" align="center"><b>Liquid</b><br><img src="img/eval_liquid.png" width="100%"></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><b>Liquid</b><br><img src="img/result_comparison2.png" width="100%"></td>
-    <td width="50%" align="center"><b>Closed</b><br><img src="img/result_comparison3.png" width="100%"></td>
+    <td width="33%" align="center"><b>Pencil</b><br><img src="img/eval_pencil.png" width="100%"></td>
+    <td width="33%" align="center"><b>Closed</b><br><img src="img/eval_closed.png" width="100%"></td>
+    <td width="33%" align="center"><b>Lips</b><br><img src="img/eval_lips.png" width="100%"></td>
   </tr>
 </table>
 
@@ -305,10 +307,10 @@ Randomly selected examples showing predicted vs. ground-truth color:
 flowchart TD
     A["📷 Product image"] --> B["ResNet-18 classifier<br/><i>image presentation type</i>"]
     B -->|bullet, liquid, pencil| C["Main U-Net segmenter<br/><i>median LAB of masked pixels</i>"]
-    B -->|closed| D["Closed U-Net segmenter<br/><i>median LAB of masked pixels</i>"]
+    B -->|closed| D["Closed U-Net segmenter<br/><i>dominant-cluster LAB of masked pixels<br/>(resists glare/reflection)</i>"]
     B -->|swatch| E["Swatch U-Net segmenter<br/><i>median LAB of masked pixels</i>"]
     B -->|lips| F["Lips U-Net segmenter<br/><i>median LAB of masked pixels</i>"]
-    B -->|unclassifiable| G["No extraction<br/><i>fall back to another product image,<br/>else exclude from index</i>"]
+    B -->|unclassifiable, or confidence < 0.6| G["No extraction<br/><i>row kept with missing color,<br/>excluded from color search</i>"]
     C --> H["CIELAB coordinate<br/>(L*, a*, b*)"]
     D --> H
     E --> H
@@ -323,11 +325,26 @@ flowchart TD
 
 The hybrid pipeline runs over the full catalog of **9,167 product images** with batched ResNet-18 inference for routing, then type-specific extraction:
 
-- Every image routed to a color-bearing class produces a color. Robustness comes from a small fallback: if a U-Net mask is empty at threshold 0.5, the pipeline retries at 0.3 rather than dropping the product.
+- Almost every image routed to a color-bearing class produces a color; a small number come back with an empty predicted mask (no pixels above the 0.5 threshold) and are left with a missing color rather than a guessed one.
 
-- Images classified `unclassifiable` are **explicitly declined**. 
+- Images classified `unclassifiable`, or below the classifier's `CLF_THRESHOLD` confidence safety net, are **explicitly declined**. 
 
 - Output: a CIELAB coordinate (plus hex) for every indexed product, joined back to brand/product/shade metadata.
+
+Randomly sampled products from the full production run, by routed type, with the extracted color swatch below each:
+
+<table>
+  <tr>
+    <td align="center" width="33%"><b>Swatch</b><br><img src="img/production_swatch.png" width="100%"></td>
+    <td align="center" width="33%"><b>Bullet</b><br><img src="img/production_bullet.png" width="100%"></td>
+    <td align="center" width="33%"><b>Liquid</b><br><img src="img/production_liquid.png" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><b>Pencil</b><br><img src="img/production_pencil.png" width="100%"></td>
+    <td align="center" width="33%"><b>Closed</b><br><img src="img/production_closed.png" width="100%"></td>
+    <td align="center" width="33%"><b>Lips</b><br><img src="img/production_lips.png" width="100%"></td>
+  </tr>
+</table>
 
 For the app's color-wheel navigation, the full catalog is clustered in LAB space with a **Gaussian Mixture Model**, with the number of components selected by **BIC**. GMM was chosen over k-means deliberately: its full-covariance ellipsoidal clusters fit the highly uneven shape of the lipstick color distribution. Particularly, the dense nude/pink/red region next to sparse purples and browns would have been over-split with k-means' spherical clusters. Queries (color wheel, photo upload, or hex) return products ranked by ΔE distance to the query color.
 
