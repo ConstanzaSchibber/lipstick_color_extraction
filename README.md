@@ -288,14 +288,16 @@ Randomly selected examples showing predicted vs. ground-truth color:
 
 <table>
   <tr>
-    <td width="33%" align="center"><b>Swatch</b><br><img src="img/eval_swatch.png" width="100%"></td>
-    <td width="33%" align="center"><b>Bullet</b><br><img src="img/eval_bullet.png" width="100%"></td>
-    <td width="33%" align="center"><b>Liquid</b><br><img src="img/eval_liquid.png" width="100%"></td>
+    <td width="50%" align="center"><b>Swatch</b><br><img src="img/eval_swatch.png" width="100%"></td>
+    <td width="50%" align="center"><b>Bullet</b><br><img src="img/eval_bullet.png" width="100%"></td>
   </tr>
   <tr>
-    <td width="33%" align="center"><b>Pencil</b><br><img src="img/eval_pencil.png" width="100%"></td>
-    <td width="33%" align="center"><b>Closed</b><br><img src="img/eval_closed.png" width="100%"></td>
-    <td width="33%" align="center"><b>Lips</b><br><img src="img/eval_lips.png" width="100%"></td>
+    <td width="50%" align="center"><b>Liquid</b><br><img src="img/eval_liquid.png" width="100%"></td>
+    <td width="50%" align="center"><b>Pencil</b><br><img src="img/eval_pencil.png" width="100%"></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><b>Closed</b><br><img src="img/eval_closed.png" width="100%"></td>
+    <td width="50%" align="center"><b>Lips</b><br><img src="img/eval_lips.png" width="100%"></td>
   </tr>
 </table>
 
@@ -335,14 +337,16 @@ Randomly sampled products from the full production run, by routed type, with the
 
 <table>
   <tr>
-    <td align="center" width="33%"><b>Swatch</b><br><img src="img/production_swatch.png" width="100%"></td>
-    <td align="center" width="33%"><b>Bullet</b><br><img src="img/production_bullet.png" width="100%"></td>
-    <td align="center" width="33%"><b>Liquid</b><br><img src="img/production_liquid.png" width="100%"></td>
+    <td align="center" width="50%"><b>Swatch</b><br><img src="img/production_swatch.png" width="100%"></td>
+    <td align="center" width="50%"><b>Bullet</b><br><img src="img/production_bullet.png" width="100%"></td>
   </tr>
   <tr>
-    <td align="center" width="33%"><b>Pencil</b><br><img src="img/production_pencil.png" width="100%"></td>
-    <td align="center" width="33%"><b>Closed</b><br><img src="img/production_closed.png" width="100%"></td>
-    <td align="center" width="33%"><b>Lips</b><br><img src="img/production_lips.png" width="100%"></td>
+    <td align="center" width="50%"><b>Liquid</b><br><img src="img/production_liquid.png" width="100%"></td>
+    <td align="center" width="50%"><b>Pencil</b><br><img src="img/production_pencil.png" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><b>Closed</b><br><img src="img/production_closed.png" width="100%"></td>
+    <td align="center" width="50%"><b>Lips</b><br><img src="img/production_lips.png" width="100%"></td>
   </tr>
 </table>
 
