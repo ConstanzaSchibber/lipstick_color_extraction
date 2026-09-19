@@ -206,7 +206,7 @@ A fine-tuned ResNet-18 (ImageNet-pretrained) classifies each image as `bullet`, 
 
 This classifier is the router for everything downstream: both extraction strategies, the production pipeline, and the active-learning loop all depend on it. Images classified `unclassifiable` exit here, because there is no color to extract.
 
-> **Note:** Downstream error analysis later revealed that most end-to-end failures were routing errors from this stage, which is why I expanded the training set with a focus on coverage and oversampling rare categories. I also added knew categories like `lips` and `pencil`.
+> **Note:** Downstream error analysis later revealed that most end-to-end failures were routing errors from this stage, which is why I expanded the training set with a focus on coverage and oversampling rare categories. I also added new categories like `lips` and `pencil`.
 
 ---
 ## Stage 2: U-Net Segmentation + Robust Extraction
@@ -252,19 +252,11 @@ Median ΔE is at or near the just-noticeable-difference threshold (~2) for every
 ---
 ## Error Analysis → Active Learning
 
-The results detailed above included an iteration of active learning.
+Error analysis on the original training set surfaced a recurring **Stage 1 routing error**: windowed-container images misclassified as `bullet` or `liquid`, sent through the wrong segmenter, producing nonsense colors.
 
-Inspecting the 12 highest-ΔE cases (image + mask overlay + predicted-vs-truth swatches side by side) revealed a consistent pattern: the failures weren't segmentation or extraction errors — they were **Stage 1 routing errors**. Windowed-container images misclassified as `bullet` or `liquid` get sent through the wrong segmenter and produce nonsense colors.
+I closed the loop with active learning, run across two rounds: score classifier confidence on images outside the training set, flag the low-confidence cases (largely the `closed`/`bullet`/`liquid` confusion above), correct just the type label, and retrain — no new masks needed. The first round added 48 corrected images to the training set.
 
-I closed the loop with a lightweight active-learning cycle:
-
-1. **Surface:** score classifier confidence on images outside the training set; low-confidence predictions (typically split between `bullet`/`liquid` and `closed`) flag the failure mode. 
-
-2. **Correct:** export those images as an annotation queue, review, and fix only the type label. New masks were not required.
-
-3. **Retrain:** merge 48 corrected images (mostly `closed`) into the training set, recompute class weights, retrain Stage 1.
-
-Accuracy on the original validation images was already near-ceiling, so the gain shows up where it matters: **generalization to unseen windowed-container images** which is the exact category the production pipeline was misrouting. Expanded validation accuracy: 98%.
+The training set was later expanded further for coverage and to oversample rare categories (adding `lips` and `pencil`, among other gaps) — see `06_a_model_classifier.ipynb` for the full history.
 
 ---
 
