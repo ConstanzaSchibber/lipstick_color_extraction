@@ -179,18 +179,20 @@ A fine-tuned ResNet-18 (ImageNet-pretrained) classifies each image as `bullet`, 
   </tr>
 </table>
 
-**Why ResNet-18 + transfer learning.** The labeled set is small (~200 images), which rules out training from scratch. ResNet-18 also has several advantages:
-- It's small, so it's forced to learn general features; a larger model would simply memorize 200 images and fail on unseen ones.
-- The task is coarse rather than fine-grained, so ImageNet features transfer almost directly.
-- It fine-tunes in minutes on a laptop GPU.
+**Technical:**
 
-**Why two-phase fine-tuning.** The classification head is randomly initialized, so its early gradients are large and noisy. A single-phase full fine-tune would corrupt the pretrained features before the head stabilizes. So:
-- Phase 1 (5 epochs, backbone frozen): the head converges against fixed pretrained features.
-- Phase 2 (15 epochs, full network, lower learning rate): the backbone adapts gently to product photography.
+- **Why ResNet-18 + transfer learning.** The labeled set is small (~200 images), which rules out training from scratch. ResNet-18 also has several advantages:
+  - It's small, so it's forced to learn general features; a larger model would simply memorize 200 images and fail on unseen ones.
+  - The task is coarse rather than fine-grained, so ImageNet features transfer almost directly.
+  - It fine-tunes in minutes on a laptop GPU.
 
-**Why weighted cross-entropy.** Swatches outnumber the rarest classes ~3×, so an unweighted loss would let the model buy accuracy by over-predicting `swatch`. Inverse-frequency weights penalize errors on rare classes proportionally more.
+- **Why two-phase fine-tuning.** The classification head is randomly initialized, so its early gradients are large and noisy. A single-phase full fine-tune would corrupt the pretrained features before the head stabilizes. So:
+  - Phase 1 (5 epochs, backbone frozen): the head converges against fixed pretrained features.
+  - Phase 2 (15 epochs, full network, lower learning rate): the backbone adapts gently to product photography.
 
-**Validation accuracy: 87%** (weighted-avg F1 0.87), on the real held-out validation set (`labels_val.csv`, N=480):
+- **Why weighted cross-entropy.** Swatches outnumber the rarest classes ~3×, so an unweighted loss would let the model buy accuracy by over-predicting `swatch`. Inverse-frequency weights penalize errors on rare classes proportionally more.
+
+**Validation:** 87% accuracy (weighted-avg F1 0.87), on the real held-out validation set (`labels_val.csv`, N=480):
 
 | Class | Precision | Recall | F1 | Support |
 |---|---|---|---|---|
@@ -222,13 +224,21 @@ Four U-Nets (ResNet-18 encoder, ImageNet-pretrained, 256×256 input → binary m
 - The ResNet-18 encoder is ImageNet-pretrained. Given the small number of annotated images, only the decoder and mask-specific behavior have to be learned from scratch.
 - Reusing the same backbone as Stage 1 keeps the pipeline consistent and makes warm-starting one segmenter from another straightforward, since they all share an architecture.
 
-- **Main segmenter** (`bullet` + `liquid` + `pencil`, 171 training images, 60 epochs): trained from ImageNet weights. Validation IoU 0.72. The `closed` and `lips` segmenters below warm-start from this one.
+- **Main segmenter** (`bullet` + `liquid` + `pencil`)
+  - Technical: 171 training images, 60 epochs, trained from ImageNet weights. The `closed` and `lips` segmenters below warm-start from this one.
+  - Validation: IoU 0.72.
 
-- **Closed segmenter** (product visible through a window or transparent packaging, 39 training images, 20 epochs): warm-started from the main segmenter's weights, since it already knows what a lipstick color-region mask looks like. Validation IoU 0.73.
+- **Closed segmenter** (product visible through a window or transparent packaging)
+  - Technical: 39 training images, 20 epochs, warm-started from the main segmenter's weights, since it already knows what a lipstick color-region mask looks like.
+  - Validation: IoU 0.73.
 
-- **Swatch segmenter** (123 training images, 40 epochs): trained from ImageNet weights. Warm-starting from the main segmenter was tested here too, but made no measurable difference (IoU 0.883 warm-started vs. 0.884 fresh) — a swatch photo doesn't resemble a packaged product closely enough for that prior to help, so the simpler fresh-init version was kept. Validation IoU 0.88.
+- **Swatch segmenter**
+  - Technical: 123 training images, 40 epochs, trained from ImageNet weights. Warm-starting from the main segmenter was tested here too, but made no measurable difference (IoU 0.883 warm-started vs. 0.884 fresh) — a swatch photo doesn't resemble a packaged product closely enough for that prior to help, so the simpler fresh-init version was kept.
+  - Validation: IoU 0.88.
 
-- **Lips segmenter** (16 training images, deduplicated from 18 — a few rows share one retailer photo across shade listings — 30 epochs): warm-started from the main segmenter. Validation IoU 0.84.
+- **Lips segmenter**
+  - Technical: 16 training images (deduplicated from 18 — a few rows share one retailer photo across shade listings), 30 epochs, warm-started from the main segmenter.
+  - Validation: IoU 0.84.
 
 See randomly selected image-mask-prediction combinations:
 
@@ -282,7 +292,9 @@ End-to-end ΔE against ground truth, on the real held-out validation set (predic
 | closed | 12 | 1.92 | 0.44 |
 | **All (core)** | 320 | 1.06 | 0.29 |
 
-Every type's median ΔE lands well under the ~2.3 just-noticeable-difference threshold. The median is a more representative number here, since Mean ΔE is skewed upward by a handful of outlier images in the smaller samples (e.g. `pencil`'s mean of 3.65 vs. its median of 0.75). `pencil`, `closed`, and `lips` have the smallest validation samples (n=20, n=12, n=12) and the widest mean/median gaps; all three are rare classes with fewer training and validation examples than swatch/bullet/liquid, so a few bad routings or masks pull their mean disproportionately.
+**91.2% of core validation images land within the 2.3 ΔE just-noticeable-difference threshold** (5.0% fall in the 2.3–5 range, 3.8% land above 5).
+
+Every type's median ΔE lands well under that ~2.3 threshold. The median is a more representative number here, since Mean ΔE is skewed upward by a handful of outlier images in the smaller samples (e.g. `pencil`'s mean of 3.65 vs. its median of 0.75). `pencil`, `closed`, and `lips` have the smallest validation samples (n=20, n=12, n=12) and the widest mean/median gaps; all three are rare classes with fewer training and validation examples than swatch/bullet/liquid, so a few bad routings or masks pull their mean disproportionately.
 
 Randomly selected examples showing predicted vs. ground-truth color:
 
