@@ -1,0 +1,37 @@
+# Direct dependencies of the notebooks and src/ (Python 3.9).
+# Versions are the ones the project was developed and run with.
+
+# Data and plotting
+numpy==1.26.4
+pandas==2.3.3
+scipy==1.13.1
+matplotlib==3.9.4
+seaborn==0.13.2
+tqdm==4.67.3
+
+# Images and color
+pillow==11.3.0
+opencv-python==4.13.0.92
+scikit-image==0.24.0
+colormath==3.0.0
+
+# Modeling
+torch==2.8.0
+torchvision==0.23.0
+timm==1.0.27
+segmentation_models_pytorch==0.5.0
+scikit-learn==1.6.1
+
+# Data collection
+requests==2.32.5
+validators==0.35.0
+
+# Annotation (decoding Label Studio brush masks)
+label-studio-converter==0.0.59
+
+# Running the notebooks
+ipykernel==6.31.0
+
+# Optional: the Label Studio app itself, only needed to annotate new images.
+# It pulls in a large Django stack, so install it separately if you need it:
+#   pip install label-studio==1.13.1

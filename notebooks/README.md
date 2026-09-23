@@ -8,7 +8,7 @@ This folder contains the notebooks for the project, organized in execution order
 
 ## Setup
 
-**1. Install dependencies:**
+**1. Install dependencies** (Python 3.9, from the repo root):
 ```
 pip install -r requirements.txt
 ```
@@ -24,7 +24,6 @@ pip install -r requirements.txt
 | 03_c_training_annotation_image_recognition | training set CSVs | images for Label Studio |
 | 04_a_validation_set_strategy | `products_with_images.csv` + training/active-learning CSVs (exclusion set) | `annotation_sample/eval_worklist.csv` |
 | 04_b_validation_annotation_image | `eval_worklist.csv`, Label Studio export (brush masks) | `annotations/labels_val.csv` |
-| 05_test_set_strategy | placeholder — not yet implemented | — |
 | 06_a_model_classifier | `annotations_combined.csv`, Label Studio mask export, `products_with_images.csv` | trained ResNet-18 classifier, `labels.csv`, `annotations/masks/` |
 | 06_b_model_segmenters | `labels.csv` (from 06_a) | trained U-Net segmenters, `segmentation_results_log.csv` |
 | 07_end_to_end_evaluation | `labels_val.csv`, notebooks 06_a/06_b's checkpoints | prints metrics, displays plots — writes no files |
@@ -78,8 +77,8 @@ Images should be placed in `data/img/original/`.
 - Resolves Label Studio's filename-truncation bug by hashing pixel content against its local media store, and drops redundant rows for pixel-identical duplicate images
 - Writes `labels_val.csv` — the ground-truth table notebook 07 scores against
 
-**05. [Test Set Strategy](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/05_test_set_strategy.ipynb)**
-- Placeholder — not yet implemented
+**05. Test Set Strategy**
+- Not yet implemented
 
 **06a. [Model: Classifier (Stage 1)](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/06_a_model_classifier.ipynb)**
 - Data preparation shared with 06b: decode Label Studio brush-mask annotations and join with ground-truth CIELAB into `data/annotations/labels.csv`
@@ -110,8 +109,4 @@ Images should be placed in `data/img/original/`.
 **10. [Active Learning](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/notebooks/10_active_learning.ipynb)** *(work in progress — not yet runnable standalone)*
 - Part 1: score the Stage 1 classifier's uncertainty on out-of-training images, export a review queue, apply human corrections, retrain
 - Part 2: score segmentation-mask uncertainty on images the classifier is already confident about, prioritize those for mask annotation
-- Split out from notebook 06's active-learning sections into its own notebook; still assumes some objects (`clf`, `CLASSES`, checkpoints) are already in memory from notebook 06a
 
-> **Archived:** the k-means vs. segmentation strategy-comparison notebook moved to
-> [`old_notebooks/07_model_clustering.ipynb`](https://github.com/ConstanzaSchibber/lipstick_color_extraction/blob/main/old_notebooks/07_model_clustering.ipynb).
-> The k-means extraction method itself is still used in production — see notebook 08.

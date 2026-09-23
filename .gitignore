@@ -66,3 +66,6 @@ Thumbs.db
 .vscode/
 .idea/
 .claude/
+
+# Placeholder notebook, not yet implemented (kept locally, untracked)
+notebooks/05_test_set_strategy.ipynb

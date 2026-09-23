@@ -10,10 +10,11 @@ import re
 import json
 from pathlib import Path
 
-CSV_PATH   = Path("data/processed/products_pipeline.csv")
-JS_IN      = Path("../lipstick_website/lipstick-data.js")
-JS_OUT     = Path("../lipstick_website/lipstick-data.js")
-IMAGES_OUT = Path("../lipstick_website/lipstick-images.js")
+REPO_ROOT  = Path(__file__).resolve().parents[1]
+CSV_PATH   = REPO_ROOT / "data/processed/products_pipeline.csv"
+JS_IN      = REPO_ROOT / "../lipstick_website/lipstick-data.js"
+JS_OUT     = REPO_ROOT / "../lipstick_website/lipstick-data.js"
+IMAGES_OUT = REPO_ROOT / "../lipstick_website/lipstick-images.js"
 
 # ── 1. Extract finish lookup from existing JS ─────────────────────────────────
 finish_lookup = {}  # (brand, product, shade) -> finish
